@@ -39,8 +39,8 @@ app.post('/api/auth/google', h(async (req, res) => {
     return res.status(401).json({ error: 'Could not verify that Google sign-in. Please try again.' });
   }
 
-  const email = payload.email;
-  const name = payload.name || email.split('@')[0];
+  const email = payload.email ? payload.email.trim().toLowerCase() : null;
+  const name = payload.name || (email ? email.split('@')[0] : 'User');
   if (!email) return res.status(400).json({ error: 'Your Google account has no email on file.' });
 
   const existing = await pool.query('SELECT * FROM users WHERE reg_no = $1', [email]);
@@ -236,7 +236,7 @@ app.get('/api/suggestions', requireAuth, h(async (req, res) => {
       MAX(CASE WHEN su.reg_no = $1 THEN 1 ELSE 0 END) as my_upvote,
       MAX(CASE WHEN sd.reg_no = $1 THEN 1 ELSE 0 END) as my_downvote
     FROM suggestions s
-    LEFT JOIN users u ON u.reg_no = s.reg_no
+    LEFT JOIN users u ON LOWER(TRIM(u.reg_no)) = LOWER(TRIM(s.reg_no))
     LEFT JOIN suggestion_upvotes su ON su.suggestion_id = s.id
     LEFT JOIN suggestion_downvotes sd ON sd.suggestion_id = s.id
     GROUP BY s.id, u.name
@@ -338,7 +338,7 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
   const feedbackResult = await pool.query(`
     SELECT f.*, u.name as commenter_name
     FROM feedback f
-    LEFT JOIN users u ON u.reg_no = f.reg_no
+    LEFT JOIN users u ON LOWER(TRIM(u.reg_no)) = LOWER(TRIM(f.reg_no))
     WHERE f.screening_id = $1
     ORDER BY f.created_at DESC
   `, [row.screening_id]);
