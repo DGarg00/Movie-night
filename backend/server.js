@@ -120,9 +120,18 @@ app.post('/api/movies', requireAdmin, h(async (req, res) => {
 }));
 
 app.delete('/api/movies/:id', requireAdmin, h(async (req, res) => {
-  await pool.query('DELETE FROM movies WHERE id = $1', [req.params.id]);
-  await pool.query('DELETE FROM poll_nominees WHERE movie_id = $1', [req.params.id]);
-  await pool.query('DELETE FROM votes WHERE movie_id = $1', [req.params.id]);
+  const movieId = req.params.id;
+
+  const screeningIds = await pool.query('SELECT id FROM screenings WHERE movie_id = $1', [movieId]);
+  const ids = screeningIds.rows.map(r => r.id);
+  if (ids.length) {
+    await pool.query('DELETE FROM feedback WHERE screening_id = ANY($1::int[])', [ids]);
+    await pool.query('UPDATE last_movie SET screening_id = NULL, set_at = NULL WHERE screening_id = ANY($1::int[])', [ids]);
+    await pool.query('DELETE FROM screenings WHERE id = ANY($1::int[])', [ids]);
+  }
+  await pool.query('DELETE FROM poll_nominees WHERE movie_id = $1', [movieId]);
+  await pool.query('DELETE FROM votes WHERE movie_id = $1', [movieId]);
+  await pool.query('DELETE FROM movies WHERE id = $1', [movieId]);
   res.json({ ok: true });
 }));
 
@@ -290,7 +299,9 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
 
   const screeningResult = await pool.query('SELECT * FROM screenings WHERE id = $1', [row.screening_id]);
   const screening = screeningResult.rows[0];
+  if (!screening) return res.json({ movie: null });
   const movieResult = await pool.query('SELECT * FROM movies WHERE id = $1', [screening.movie_id]);
+  if (!movieResult.rows[0]) return res.json({ movie: null });
   const feedbackResult = await pool.query('SELECT * FROM feedback WHERE screening_id = $1 ORDER BY created_at DESC', [row.screening_id]);
   const feedback = feedbackResult.rows;
   const avg = feedback.length ? feedback.reduce((a, f) => a + f.rating, 0) / feedback.length : 0;
