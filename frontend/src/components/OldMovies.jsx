@@ -4,10 +4,28 @@ import MovieTicket from './MovieTicket';
 
 export default function OldMovies() {
   const [screenings, setScreenings] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
-    api.getScreenings().then(setScreenings);
-  }, []);
+  function load() {
+    setLoadError('');
+    api.getScreenings().then(setScreenings).catch(err => setLoadError(err.message || 'Could not load Old Movies.'));
+  }
+  useEffect(() => { load(); }, []);
+
+  if (loadError) {
+    return (
+      <section>
+        <div className="section-head"><div className="dot"></div><h2>Old Movies</h2></div>
+        <div className="empty">
+          <span className="display">Couldn't load this section</span>
+          {loadError}
+          <div style={{ marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={load}>Try Again</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (!screenings) return null;
 
