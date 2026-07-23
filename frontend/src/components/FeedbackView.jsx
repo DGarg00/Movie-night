@@ -180,6 +180,7 @@ export default function FeedbackView({ showToast }) {
           <div className="card">
             {data.feedback.map((f, i) => (
               <div className="feedback-item" key={i}>
+                <div className="name" style={{ fontSize: 13, fontFamily: 'Bebas Neue', letterSpacing: '0.03em', color: 'var(--gold)' }}>{f.name}</div>
                 <div className="stars-mini">{'★'.repeat(f.rating)}{'☆'.repeat(5 - f.rating)} <span style={{ color: 'var(--slate)', fontFamily: 'Inter', fontWeight: 600, fontSize: 12 }}>— {f.name}</span></div>
                 {f.experience && f.experience.length > 0 && (
                   <div className="tag" style={{ marginTop: 4 }}>{f.experience.join(' · ')}</div>
