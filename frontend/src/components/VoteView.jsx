@@ -16,8 +16,13 @@ export default function VoteView({ showToast }) {
 
   async function vote(movieId) {
     try {
-      await api.vote(movieId);
-      showToast('Vote counted!');
+      if (poll.myVote === movieId) {
+        await api.unvote();
+        showToast('Vote removed');
+      } else {
+        await api.vote(movieId);
+        showToast('Vote counted!');
+      }
       load();
     } catch (err) {
       showToast(err.message);
@@ -54,7 +59,7 @@ export default function VoteView({ showToast }) {
                 className={`btn btn-vote ${votedForThis ? 'voted' : ''}`}
                 onClick={() => vote(m.id)}
               >
-                {votedForThis ? '✓ Your pick' : 'Vote for this'}
+                {votedForThis ? '✓ Your pick (Tap to undo)' : 'Vote for this'}
               </button>
               <div className="vote-bar-wrap">
                 <div className="vote-bar-track"><div className="vote-bar-fill" style={{ width: `${pct}%` }} /></div>
