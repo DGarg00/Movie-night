@@ -119,6 +119,31 @@ app.post('/api/movies', requireAdmin, h(async (req, res) => {
   res.json(serializeMovie(result.rows[0]));
 }));
 
+app.put('/api/movies/:id', requireAdmin, h(async (req, res) => {
+  const { title, posterUrl, genre, duration, language, year, rating, pgTag, pgDetail, storyline } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required.' });
+
+  const result = await pool.query(`
+    UPDATE movies SET
+      title = $1, poster_url = $2, genre = $3, duration = $4, language = $5,
+      year = $6, imdb_rating = $7, pg_tag = $8, pg_detail = $9, storyline = $10
+    WHERE id = $11
+    RETURNING *
+  `, [
+    title, posterUrl || null, genre || null,
+    duration ? Number(duration) : null,
+    language || null,
+    year ? Number(year) : null,
+    rating ? Number(rating) : null,
+    pgTag || 'mild',
+    pgDetail || null,
+    storyline || null,
+    req.params.id
+  ]);
+  if (!result.rows[0]) return res.status(404).json({ error: 'Movie not found.' });
+  res.json(serializeMovie(result.rows[0]));
+}));
+
 app.delete('/api/movies/:id', requireAdmin, h(async (req, res) => {
   const movieId = req.params.id;
 
@@ -165,6 +190,12 @@ app.get('/api/poll', requireAuth, h(async (req, res) => {
   });
 }));
 
+app.delete('/api/poll/vote', requireAuth, h(async (req, res) => {
+  const poll = await getActivePoll();
+  await pool.query('DELETE FROM votes WHERE poll_id = $1 AND reg_no = $2', [poll.id, req.user.regNo]);
+  res.json({ ok: true });
+}));
+
 app.post('/api/poll/vote', requireAuth, h(async (req, res) => {
   const { movieId } = req.body;
   const poll = await getActivePoll();
@@ -199,15 +230,16 @@ app.post('/api/poll/nominees', requireAdmin, h(async (req, res) => {
 
 app.get('/api/suggestions', requireAuth, h(async (req, res) => {
   const result = await pool.query(`
-    SELECT s.*,
+    SELECT s.*, u.name as submitter_name,
       COUNT(DISTINCT su.reg_no) as upvotes,
       COUNT(DISTINCT sd.reg_no) as downvotes,
       MAX(CASE WHEN su.reg_no = $1 THEN 1 ELSE 0 END) as my_upvote,
       MAX(CASE WHEN sd.reg_no = $1 THEN 1 ELSE 0 END) as my_downvote
     FROM suggestions s
+    LEFT JOIN users u ON u.reg_no = s.reg_no
     LEFT JOIN suggestion_upvotes su ON su.suggestion_id = s.id
     LEFT JOIN suggestion_downvotes sd ON sd.suggestion_id = s.id
-    GROUP BY s.id
+    GROUP BY s.id, u.name
     ORDER BY (COUNT(DISTINCT su.reg_no) - COUNT(DISTINCT sd.reg_no)) DESC, s.created_at DESC
   `, [req.user.regNo]);
 
@@ -218,7 +250,8 @@ app.get('/api/suggestions', requireAuth, h(async (req, res) => {
       id: r.id, name: r.name, link: r.link, note: r.note,
       upvotes: Number(r.upvotes), downvotes: Number(r.downvotes),
       upvotedByMe: !!Number(r.my_upvote), downvotedByMe: !!Number(r.my_downvote),
-      submittedBy: r.reg_no
+      submittedBy: r.reg_no,
+      submittedByName: r.submitter_name || r.reg_no
     })),
     remainingSuggestions: userRow.rows[0] ? userRow.rows[0].suggestion_allowance : 1
   });
@@ -302,7 +335,13 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
   if (!screening) return res.json({ movie: null });
   const movieResult = await pool.query('SELECT * FROM movies WHERE id = $1', [screening.movie_id]);
   if (!movieResult.rows[0]) return res.json({ movie: null });
-  const feedbackResult = await pool.query('SELECT * FROM feedback WHERE screening_id = $1 ORDER BY created_at DESC', [row.screening_id]);
+  const feedbackResult = await pool.query(`
+    SELECT f.*, u.name as commenter_name
+    FROM feedback f
+    LEFT JOIN users u ON u.reg_no = f.reg_no
+    WHERE f.screening_id = $1
+    ORDER BY f.created_at DESC
+  `, [row.screening_id]);
   const feedback = feedbackResult.rows;
   const avg = feedback.length ? feedback.reduce((a, f) => a + f.rating, 0) / feedback.length : 0;
   const mine = feedback.find(f => f.reg_no === req.user.regNo);
@@ -313,12 +352,9 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
     experienceOptions: EXPERIENCE_OPTIONS,
     feedback: feedback.map(f => ({
       rating: f.rating, comment: f.comment, experience: f.experience || [],
+      name: f.commenter_name || f.reg_no,
       createdAt: Number(f.created_at), isMine: f.reg_no === req.user.regNo
     })),
-    average: avg,
-    myFeedback: mine ? { rating: mine.rating, comment: mine.comment, experience: mine.experience || [] } : null
-  });
-}));
 
 app.post('/api/last-movie', requireAdmin, h(async (req, res) => {
   const { movieId, shownDate } = req.body;
