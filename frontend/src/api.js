@@ -38,10 +38,12 @@ export const api = {
 
   getMovies: () => request('/movies'),
   addMovie: (movie) => request('/movies', { method: 'POST', body: movie }),
+  updateMovie: (id, movie) => request(`/movies/${id}`, { method: 'PUT', body: movie }),
   deleteMovie: (id) => request(`/movies/${id}`, { method: 'DELETE' }),
 
   getPoll: () => request('/poll'),
   vote: (movieId) => request('/poll/vote', { method: 'POST', body: { movieId } }),
+  unvote: () => request('/poll/vote', { method: 'DELETE' }),
   setNominees: (movieIds) => request('/poll/nominees', { method: 'POST', body: { movieIds } }),
 
   getSuggestions: () => request('/suggestions'),
