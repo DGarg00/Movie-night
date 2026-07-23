@@ -22,9 +22,10 @@ export default function AdminView({ showToast }) {
   const [loadError, setLoadError] = useState('');
 
   const [form, setForm] = useState(emptyForm);
-  
   const [posterUrl, setPosterUrl] = useState('');
+  const [editingId, setEditingId] = useState(null);
   const [checkedNominees, setCheckedNominees] = useState([]);
+  
   const [lastMovieSelect, setLastMovieSelect] = useState('');
   const [shownDate, setShownDate] = useState(new Date().toISOString().slice(0, 10));
   const [resetEmail, setResetEmail] = useState('');
@@ -61,17 +62,47 @@ export default function AdminView({ showToast }) {
     setForm(f => ({ ...f, [field]: value }));
   }
 
-  async function addMovie() {
+  async function saveMovie() {
     if (!form.title.trim()) { showToast('Title is required'); return; }
-    await api.addMovie({ ...form, posterUrl: posterUrl.trim() });
+    if (editingId) {
+      await api.updateMovie(editingId, { ...form, posterUrl: posterUrl.trim() });
+      showToast('Movie updated');
+    } else {
+      await api.addMovie({ ...form, posterUrl: posterUrl.trim() });
+      showToast('Movie added to library');
+    }
     setForm(emptyForm);
     setPosterUrl('');
-    showToast('Movie added to library');
+    setEditingId(null);
     loadAll();
+  }
+
+  function startEdit(m) {
+    setForm({
+      title: m.title || '',
+      genre: m.genre || '',
+      duration: m.duration ?? '',
+      language: m.language || '',
+      year: m.year ?? '',
+      rating: m.rating ?? '',
+      pgTag: m.pgTag || 'mild',
+      pgDetail: m.pgDetail || '',
+      storyline: m.storyline || ''
+    });
+    setPosterUrl(m.poster || '');
+    setEditingId(m.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setForm(emptyForm);
+    setPosterUrl('');
+    setEditingId(null);
   }
 
   async function deleteMovie(id) {
     await api.deleteMovie(id);
+    if (editingId === id) cancelEdit();
     showToast('Removed');
     loadAll();
   }
@@ -131,7 +162,7 @@ export default function AdminView({ showToast }) {
           <button className="btn btn-ghost" style={{ marginLeft: 10 }} onClick={loadAll}>Retry</button>
         </div>
       )}
-      <div className="section-head"><div className="dot"></div><h2 style={{ fontSize: 22 }}>Add A Movie</h2></div>
+      <div className="section-head"><div className="dot"></div><h2 style={{ fontSize: 22 }}>{editingId ? 'Edit Movie' : 'Add A Movie'}</h2></div>
       <div className="card">
         <label>Title</label>
         <input type="text" value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Inception" />
@@ -169,7 +200,8 @@ export default function AdminView({ showToast }) {
         <textarea value={form.pgDetail} onChange={e => updateField('pgDetail', e.target.value)} placeholder="e.g. One mild profanity, brief violence, no sexual content" />
         <label>Storyline</label>
         <textarea value={form.storyline} onChange={e => updateField('storyline', e.target.value)} placeholder="Short synopsis, like the one Google shows on the right" />
-        <button className="btn btn-primary" onClick={addMovie}>Add To Library</button>
+        <button className="btn btn-primary" onClick={saveMovie}>{editingId ? 'Update Movie' : 'Add To Library'}</button>
+        {editingId && <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={cancelEdit}>Cancel Edit</button>}
       </div>
 
       <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Movie Library</h2></div>
@@ -181,7 +213,8 @@ export default function AdminView({ showToast }) {
               <div className="name">{m.title}</div>
               <div className="tag">{m.year || '—'} · IMDb {m.rating ?? '—'} · {m.language || '—'}</div>
             </div>
-            <button className="btn btn-ghost" onClick={() => deleteMovie(m.id)}>Remove</button>
+            <button className="btn btn-ghost" onClick={() => startEdit(m)}>Edit</button>
+            <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={() => deleteMovie(m.id)}>Remove</button>
           </div>
         ))}
       </div>
@@ -252,7 +285,7 @@ export default function AdminView({ showToast }) {
         {suggestions.map(s => (
           <div className="movie-lib-row" key={s.id}>
             <div>
-              <div className="name">{s.name} <span className="tag">({s.upvotes} up / {s.downvotes} down, by {s.submittedBy})</span></div>
+              <div className="name">{s.name} <span className="tag">({s.upvotes} up / {s.downvotes} down, by {s.submittedByName})</span></div>
               {s.link && <div className="tag">{s.link}</div>}
               {s.note && <div className="tag">{s.note}</div>}
             </div>
