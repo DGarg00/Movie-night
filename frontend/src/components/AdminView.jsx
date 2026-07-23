@@ -19,8 +19,10 @@ export default function AdminView({ showToast }) {
   const [poll, setPoll] = useState(null);
   const [lastMovie, setLastMovie] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [loadError, setLoadError] = useState('');
 
   const [form, setForm] = useState(emptyForm);
+  
   const [posterUrl, setPosterUrl] = useState('');
   const [checkedNominees, setCheckedNominees] = useState([]);
   const [lastMovieSelect, setLastMovieSelect] = useState('');
@@ -28,15 +30,30 @@ export default function AdminView({ showToast }) {
   const [resetEmail, setResetEmail] = useState('');
 
   async function loadAll() {
-    const [m, p, lm, s] = await Promise.all([
-      api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions()
-    ]);
-    setMovies(m);
-    setPoll(p);
-    setCheckedNominees(p.nominees.map(n => n.id));
-    setLastMovie(lm);
-    setLastMovieSelect('');
-    setSuggestions(s.suggestions);
+    setLoadError('');
+    try {
+      const [mRes, pRes, lmRes, sRes] = await Promise.allSettled([
+        api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions()
+      ]);
+
+      if (mRes.status === 'fulfilled') setMovies(mRes.value);
+      if (pRes.status === 'fulfilled') {
+        setPoll(pRes.value);
+        setCheckedNominees(pRes.value.nominees.map(n => n.id));
+      }
+      if (lmRes.status === 'fulfilled') {
+        setLastMovie(lmRes.value);
+        setLastMovieSelect('');
+      }
+      if (sRes.status === 'fulfilled') setSuggestions(sRes.value.suggestions);
+
+      const failed = [mRes, pRes, lmRes, sRes].find(r => r.status === 'rejected');
+      if (failed) setLoadError(failed.reason?.message || 'Some data could not be loaded.');
+      if (pRes.status !== 'fulfilled' && !poll) setPoll({ nominees: [] });
+    } catch (err) {
+      setLoadError(err.message || 'Could not load the admin panel.');
+      setPoll(p => p || { nominees: [] });
+    }
   }
   useEffect(() => { loadAll(); }, []);
 
@@ -108,6 +125,12 @@ export default function AdminView({ showToast }) {
 
   return (
     <section>
+      {loadError && (
+        <div className="empty" style={{ marginBottom: 20, textAlign: 'left', padding: '16px 20px' }}>
+          <strong style={{ color: 'var(--red)' }}>Some data didn't load:</strong> {loadError}{' '}
+          <button className="btn btn-ghost" style={{ marginLeft: 10 }} onClick={loadAll}>Retry</button>
+        </div>
+      )}
       <div className="section-head"><div className="dot"></div><h2 style={{ fontSize: 22 }}>Add A Movie</h2></div>
       <div className="card">
         <label>Title</label>
