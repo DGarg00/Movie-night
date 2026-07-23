@@ -250,7 +250,7 @@ app.get('/api/suggestions', requireAuth, h(async (req, res) => {
       id: r.id, name: r.name, link: r.link, note: r.note,
       upvotes: Number(r.upvotes), downvotes: Number(r.downvotes),
       upvotedByMe: !!Number(r.my_upvote), downvotedByMe: !!Number(r.my_downvote),
-      submittedBy: r.reg_no,
+      submittedBy: r.submitter_name || r.reg_no,
       submittedByName: r.submitter_name || r.reg_no
     })),
     remainingSuggestions: userRow.rows[0] ? userRow.rows[0].suggestion_allowance : 1
