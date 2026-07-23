@@ -64,7 +64,7 @@ export default function App() {
   const tabs = [
     { id: 'vote', label: 'Next Saturday' },
     { id: 'suggest', label: 'Suggest a Movie' },
-    { id: 'feedback', label: 'Rate Last Movie' },
+    { id: 'feedback', label: 'Feedback' },
     { id: 'old', label: 'Old Movies' },
     ...(user.isAdmin ? [{ id: 'admin', label: 'Admin' }] : [])
   ];
@@ -75,7 +75,7 @@ export default function App() {
         <div className="bulbs">
           {Array.from({ length: 7 }).map((_, i) => <div className="bulb" key={i}></div>)}
         </div>
-        <h1 className="display">SATURDAY NIGHT CINEMA</h1>
+        <h1 className="display">Movie Committee - NDG</h1>
         <p>Pick it. Suggest it. Rate it.</p>
         <div className="who">
           {user.name} ({user.regNo}){user.isAdmin ? ' · admin' : ''}
