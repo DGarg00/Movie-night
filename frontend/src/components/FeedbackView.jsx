@@ -4,15 +4,21 @@ import MovieTicket from './MovieTicket';
 
 export default function FeedbackView({ showToast }) {
   const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [experience, setExperience] = useState([]);
 
   async function load() {
-    setData(await api.getLastMovie());
+    setLoadError('');
+    try {
+      setData(await api.getLastMovie());
+    } catch (err) {
+      setLoadError(err.message || 'Could not load this section.');
+    }
   }
   useEffect(() => { load(); }, []);
-
+  
   function toggleExperience(opt) {
     setExperience(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt]);
   }
@@ -76,6 +82,21 @@ export default function FeedbackView({ showToast }) {
     }
   }
 
+  if (loadError) {
+    return (
+      <section>
+        <div className="section-head"><div className="dot"></div><h2>Rate Last Movie</h2></div>
+        <div className="empty">
+          <span className="display">Couldn't load this section</span>
+          {loadError}
+          <div style={{ marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={load}>Try Again</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+  
   if (!data) return null;
 
   if (!data.movie) {
