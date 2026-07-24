@@ -355,6 +355,10 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
       name: f.commenter_name || f.reg_no,
       createdAt: Number(f.created_at), isMine: f.reg_no === req.user.regNo
     })),
+    average: avg,
+    myFeedback: mine ? { rating: mine.rating, comment: mine.comment, experience: mine.experience || [] } : null
+  });
+}));
 
 app.post('/api/last-movie', requireAdmin, h(async (req, res) => {
   const { movieId, shownDate } = req.body;
