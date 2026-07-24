@@ -368,6 +368,7 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
     average: avg,
     myFeedback: mine ? { rating: mine.rating, comment: mine.comment, experience: mine.experience || [] } : null
   });
+}));
 
 app.post('/api/last-movie', requireAdmin, h(async (req, res) => {
   const { movieId, shownDate } = req.body;
