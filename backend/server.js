@@ -498,7 +498,30 @@ app.post('/api/admin/reset', requireAdmin, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+async function ensureMaintenanceTable() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+  const existing = await pool.query("SELECT 1 FROM settings WHERE key = 'maintenance'");
+  if (!existing.rows.length) {
+    await pool.query("INSERT INTO settings (key, value) VALUES ('maintenance', 'off')");
+  }
+}
+
+app.get('/api/maintenance', h(async (req, res) => {
+  const result = await pool.query("SELECT value FROM settings WHERE key = 'maintenance'");
+  res.json({ on: result.rows[0] ? result.rows[0].value === 'on' : false });
+}));
+
+app.post('/api/admin/maintenance', requireAdmin, h(async (req, res) => {
+  const { on } = req.body;
+  await pool.query(
+    "INSERT INTO settings (key, value) VALUES ('maintenance', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+    [on ? 'on' : 'off']
+  );
+  res.json({ ok: true });
+}));
+
 init()
+  .then(ensureMaintenanceTable)
   .then(() => {
     app.listen(PORT, () => console.log(`Movie Night API running on http://localhost:${PORT}`));
   })
