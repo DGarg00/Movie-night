@@ -132,15 +132,7 @@ async function init() {
     END $$;
   `).catch(() => {});
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS feedback_reactions (
-      feedback_id INTEGER NOT NULL,
-      reg_no TEXT NOT NULL,
-      reaction TEXT NOT NULL,
-      PRIMARY KEY (feedback_id, reg_no)
-    );
-  `);
-  
+  const pollCount = await pool.query('SELECT COUNT(*) c FROM polls');
   if (Number(pollCount.rows[0].c) === 0) {
     await pool.query('INSERT INTO polls (is_active, created_at) VALUES (1, $1)', [Date.now()]);
   }
