@@ -80,8 +80,7 @@ export default function SuggestView({ showToast, user }) {
           {suggestions.map(s => (
             <div className="suggestion" key={s.id}>
               <div className="txt">
-                <strong>{s.name}</strong>
-                <div className="note">Suggested by {s.submittedByName}</div>
+               <strong>{s.name}</strong>
                 {s.link && <div><a href={s.link} target="_blank" rel="noopener noreferrer">{s.link}</a></div>}
                 {s.note && <div className="note">{s.note}</div>}
                 {user?.isAdmin && (
