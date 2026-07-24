@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import MovieTicket from './MovieTicket';
 
+const MAX_COMMENT_WORDS = 25;
+function limitWords(text) {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= MAX_COMMENT_WORDS) return text;
+  return words.slice(0, MAX_COMMENT_WORDS).join(' ');
+}
+
 export default function FeedbackView({ showToast, user }) {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -184,8 +191,16 @@ export default function FeedbackView({ showToast, user }) {
               </>
             )}
 
-            <label style={{ marginTop: 10 }}>Comment (optional)</label>
-            <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="What did you think?" />
+            <label style={{ marginTop: 10 }}>Comment (optional, max 25 words)</label>
+            <textarea
+              value={comment}
+              onChange={e => setComment(limitWords(e.target.value))}
+              placeholder="What did you think?"
+              rows={2}
+            />
+            <div style={{ fontSize: 11, color: 'var(--slate)', marginTop: -6, marginBottom: 10 }}>
+              {comment.trim() ? comment.trim().split(/\s+/).filter(Boolean).length : 0} / {MAX_COMMENT_WORDS} words
+            </div>
             <button className="btn btn-primary" onClick={submit}>Submit Rating</button>
           </>
         )}
@@ -195,10 +210,12 @@ export default function FeedbackView({ showToast, user }) {
         <>
           <div className="section-head" style={{ marginTop: 30 }}>
             <div className="dot"></div><h2 style={{ fontSize: 20 }}>What People Said</h2>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <button className="btn btn-ghost" onClick={copyReport}>Copy Report</button>
-              <button className="btn btn-ghost" onClick={downloadReport}>Download Report</button>
-            </div>
+            {user?.isAdmin && (
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                <button className="btn btn-ghost" onClick={copyReport}>Copy Report</button>
+                <button className="btn btn-ghost" onClick={downloadReport}>Download Report</button>
+              </div>
+            )}
           </div>
           <div className="card">
             {data.feedback.map((f, i) => (
