@@ -43,7 +43,9 @@ export default function SuggestView({ showToast, user }) {
     load();
   }
 
-  const topPicks = suggestions.slice(0, 3);
+  const eligiblePicks = suggestions.filter(s => s.upvotes !== 0 || s.downvotes !== 0);
+  const topPicks = eligiblePicks.slice(0, 3);
+  const worstPicks = eligiblePicks.slice(-3).reverse();
 
   return (
     <section>
@@ -109,6 +111,20 @@ export default function SuggestView({ showToast, user }) {
               <span className="top-pick-rank">#{i + 1}</span>
               <div className="top-pick-info">
                 <div className="top-pick-name">{s.name}</div>
+                <div className="top-pick-votes">▲ {s.upvotes} &nbsp; ▼ {s.downvotes} &nbsp; net {s.upvotes - s.downvotes}</div>
+              </div>
+            </div>
+          ))}
+
+          <div className="top-picks-head" style={{ marginTop: 20, color: 'var(--red)' }}>💀 Worst Picks</div>
+          {worstPicks.length === 0 && (
+            <p style={{ color: 'var(--slate)', fontSize: 12.5 }}>No suggestions yet.</p>
+          )}
+          {worstPicks.map((s, i) => (
+            <div className="top-pick-row" key={s.id}>
+              <span className="top-pick-rank" style={{ color: 'var(--red)' }}>#{i + 1}</span>
+              <div className="top-pick-info">
+                <div className="top-pick-name" style={{ color: 'var(--red)' }}>{s.name}</div>
                 <div className="top-pick-votes">▲ {s.upvotes} &nbsp; ▼ {s.downvotes} &nbsp; net {s.upvotes - s.downvotes}</div>
               </div>
             </div>
