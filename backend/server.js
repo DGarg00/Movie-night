@@ -339,10 +339,12 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
     SELECT f.*, u.name as commenter_name,
       COUNT(DISTINCT CASE WHEN fr.reaction = 'up' THEN fr.reg_no END) as thumbs_up,
       COUNT(DISTINCT CASE WHEN fr.reaction = 'down' THEN fr.reg_no END) as thumbs_down,
-      MAX(CASE WHEN fr.reg_no = $2 THEN fr.reaction END) as my_reaction
+      MAX(CASE WHEN fr.reg_no = $2 THEN fr.reaction END) as my_reaction,
+      BOOL_OR(fr.reaction = 'up' AND ru.is_admin = 1) as liked_by_admin
     FROM feedback f
-    LEFT JOIN users u ON LOWER(TRIM(u.reg_no)) = LOWER(TRIM(f.reg_no))
+    LEFT JOIN users u ON u.reg_no = f.reg_no
     LEFT JOIN feedback_reactions fr ON fr.feedback_id = f.id
+    LEFT JOIN users ru ON ru.reg_no = fr.reg_no
     WHERE f.screening_id = $1
     GROUP BY f.id, u.name
     ORDER BY f.created_at DESC
@@ -360,6 +362,7 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
       rating: f.rating, comment: f.comment, experience: f.experience || [],
       name: f.commenter_name || f.reg_no,
       thumbsUp: Number(f.thumbs_up), thumbsDown: Number(f.thumbs_down), myReaction: f.my_reaction || null,
+      likedByAdmin: !!f.liked_by_admin,
       createdAt: Number(f.created_at), isMine: f.reg_no === req.user.regNo
     })),
     average: avg,
