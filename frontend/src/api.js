@@ -35,7 +35,9 @@ export const api = {
   googleAuth: (credential) => request('/auth/google', { method: 'POST', body: { credential } }),
   claimAdmin: (code) => request('/auth/claim-admin', { method: 'POST', body: { code } }),
   me: () => request('/auth/me'),
-
+  
+  getMaintenance: () => request('/maintenance'),
+  setMaintenance: (on) => request('/admin/maintenance', { method: 'POST', body: { on } }),
   getMovies: () => request('/movies'),
   addMovie: (movie) => request('/movies', { method: 'POST', body: movie }),
   updateMovie: (id, movie) => request(`/movies/${id}`, { method: 'PUT', body: movie }),
