@@ -29,12 +29,13 @@ export default function AdminView({ showToast }) {
   const [lastMovieSelect, setLastMovieSelect] = useState('');
   const [shownDate, setShownDate] = useState(new Date().toISOString().slice(0, 10));
   const [resetEmail, setResetEmail] = useState('');
+  const [maintenanceOn, setMaintenanceOn] = useState(false);
 
   async function loadAll() {
     setLoadError('');
     try {
-      const [mRes, pRes, lmRes, sRes] = await Promise.allSettled([
-        api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions()
+      const [mRes, pRes, lmRes, sRes, maintRes] = await Promise.allSettled([
+        api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions(), api.getMaintenance()
       ]);
 
       if (mRes.status === 'fulfilled') setMovies(mRes.value);
@@ -47,6 +48,7 @@ export default function AdminView({ showToast }) {
         setLastMovieSelect('');
       }
       if (sRes.status === 'fulfilled') setSuggestions(sRes.value.suggestions);
+      if (maintRes.status === 'fulfilled') setMaintenanceOn(maintRes.value.on);
 
       const failed = [mRes, pRes, lmRes, sRes].find(r => r.status === 'rejected');
       if (failed) setLoadError(failed.reason?.message || 'Some data could not be loaded.');
@@ -150,6 +152,13 @@ export default function AdminView({ showToast }) {
     await api.adminReset(scope);
     showToast(`${label} — done`);
     loadAll();
+  }
+
+  async function toggleMaintenance() {
+    const next = !maintenanceOn;
+    await api.setMaintenance(next);
+    setMaintenanceOn(next);
+    showToast(next ? 'Site is now down for everyone except admins' : 'Site is back up for everyone');
   }
 
   if (!poll) return null;
@@ -292,6 +301,16 @@ export default function AdminView({ showToast }) {
             <button className="btn btn-ghost" onClick={() => removeSuggestion(s.id)}>Remove</button>
           </div>
         ))}
+      </div>
+
+      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Site Access</h2></div>
+      <div className="card">
+        <p style={{ color: 'var(--slate)', fontSize: 13, marginBottom: 12 }}>
+          Turn this on while making changes — everyone except admins sees "Site is down for now" instead of the app.
+        </p>
+        <button className={`btn ${maintenanceOn ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleMaintenance}>
+          {maintenanceOn ? 'Maintenance Mode: ON — Click to turn OFF' : 'Maintenance Mode: OFF — Click to turn ON'}
+        </button>
       </div>
 
       <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Danger Zone — Reset</h2></div>
