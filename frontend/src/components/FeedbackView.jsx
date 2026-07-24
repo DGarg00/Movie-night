@@ -18,7 +18,7 @@ export default function FeedbackView({ showToast, user }) {
     }
   }
   useEffect(() => { load(); }, []);
-  
+
   function toggleExperience(opt) {
     setExperience(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt]);
   }
@@ -115,7 +115,7 @@ export default function FeedbackView({ showToast, user }) {
       </section>
     );
   }
-  
+
   if (!data) return null;
 
   if (!data.movie) {
@@ -131,10 +131,14 @@ export default function FeedbackView({ showToast, user }) {
   }
 
   const experienceOptions = data.experienceOptions || [];
+  const adminLiked = data.feedback.filter(f => f.likedByAdmin);
 
   return (
     <section>
       <div className="section-head"><div className="dot"></div><h2>Rate Last Movie</h2></div>
+
+      <div className="suggest-layout">
+        <div>
       <MovieTicket movie={data.movie} />
 
       {data.feedback.length > 0 && (
@@ -221,6 +225,24 @@ export default function FeedbackView({ showToast, user }) {
           </div>
         </>
       )}
+        </div>
+
+        <aside className="top-picks">
+          <div className="top-picks-head">❤️ Liked By Admin</div>
+          {adminLiked.length === 0 && (
+            <p style={{ color: 'var(--slate)', fontSize: 12.5 }}>No comments liked by an admin yet.</p>
+          )}
+          {adminLiked.map((f, i) => (
+            <div className="top-pick-row" key={i}>
+              <span className="top-pick-rank">{'★'.repeat(f.rating)}</span>
+              <div className="top-pick-info">
+                <div className="top-pick-name">{f.name}</div>
+                {f.comment && <div className="top-pick-votes">{f.comment}</div>}
+              </div>
+            </div>
+          ))}
+        </aside>
+      </div>
     </section>
   );
 }
