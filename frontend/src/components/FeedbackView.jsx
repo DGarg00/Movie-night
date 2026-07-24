@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import MovieTicket from './MovieTicket';
 
-export default function FeedbackView({ showToast }) {
+export default function FeedbackView({ showToast, user }) {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [rating, setRating] = useState(0);
@@ -39,6 +39,25 @@ export default function FeedbackView({ showToast }) {
     try {
       await api.removeMyComment();
       showToast('Comment removed');
+      load();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function react(id, reaction) {
+    try {
+      await api.reactFeedback(id, reaction);
+      load();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function adminRemoveFeedback(id) {
+    try {
+      await api.deleteFeedback(id);
+      showToast('Feedback removed');
       load();
     } catch (err) {
       showToast(err.message);
@@ -180,13 +199,23 @@ export default function FeedbackView({ showToast }) {
           <div className="card">
             {data.feedback.map((f, i) => (
               <div className="feedback-item" key={i}>
-                <div className="name" style={{ fontSize: 13, fontFamily: 'Bebas Neue', letterSpacing: '0.03em', color: 'var(--gold)' }}>{f.name}</div>
                 <div className="stars-mini">{'★'.repeat(f.rating)}{'☆'.repeat(5 - f.rating)} <span style={{ color: 'var(--slate)', fontFamily: 'Inter', fontWeight: 600, fontSize: 12 }}>— {f.name}</span></div>
                 {f.experience && f.experience.length > 0 && (
                   <div className="tag" style={{ marginTop: 4 }}>{f.experience.join(' · ')}</div>
                 )}
                 {f.comment && <div className="comment">{f.comment}</div>}
-                <div className="when">{new Date(f.createdAt).toLocaleDateString()}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                  <div className="when" style={{ marginRight: 'auto' }}>{new Date(f.createdAt).toLocaleDateString()}</div>
+                  <div className={`upvote ${f.myReaction === 'up' ? 'done' : ''}`} onClick={() => react(f.id, 'up')}>
+                    <div>👍</div><div>{f.thumbsUp}</div>
+                  </div>
+                  <div className={`downvote ${f.myReaction === 'down' ? 'done' : ''}`} onClick={() => react(f.id, 'down')}>
+                    <div>👎</div><div>{f.thumbsDown}</div>
+                  </div>
+                  {user?.isAdmin && (
+                    <button className="btn btn-ghost" onClick={() => adminRemoveFeedback(f.id)}>Remove</button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
