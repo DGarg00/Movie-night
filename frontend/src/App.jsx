@@ -8,6 +8,7 @@ import OldMovies from './components/OldMovies';
 import AdminView from './components/AdminView';
 
 export default function App() {
+  const [maintenanceOn, setMaintenanceOn] = useState(false);
   const [user, setUser] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState('vote');
@@ -28,10 +29,14 @@ export default function App() {
           clearToken();
         }
       }
+      try {
+        const m = await api.getMaintenance();
+        setMaintenanceOn(m.on);
+      } catch {}
       setCheckingSession(false);
     })();
   }, []);
-
+  
   function showToast(msg) {
     setToast(msg);
     clearTimeout(toastTimer.current);
@@ -59,6 +64,18 @@ export default function App() {
   }
 
   if (checkingSession) return null;
+
+  if (maintenanceOn && (!user || !user.isAdmin)) {
+    return (
+      <div className="auth-screen">
+        <h2 className="display">Saturday Night Cinema</h2>
+        <div className="card" style={{ textAlign: 'center', padding: '30px 22px' }}>
+          <p style={{ fontSize: 15, color: 'var(--cream)' }}>Site is down for now. Come again later.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) return <Auth onAuthed={setUser} />;
 
   const tabs = [
