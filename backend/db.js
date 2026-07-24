@@ -102,6 +102,13 @@ async function init() {
       created_at BIGINT NOT NULL,
       UNIQUE(screening_id, reg_no)
     );
+
+    CREATE TABLE IF NOT EXISTS feedback_reactions (
+      feedback_id INTEGER NOT NULL,
+      reg_no TEXT NOT NULL,
+      reaction TEXT NOT NULL CHECK (reaction IN ('up', 'down')),
+      PRIMARY KEY (feedback_id, reg_no)
+    );
   `);
 
   // Migrations for databases created before this schema existed. Safe to re-run every boot.
