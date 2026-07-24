@@ -111,8 +111,8 @@ export default function App() {
 
       <main>
         {tab === 'vote' && <VoteView showToast={showToast} />}
-        {tab === 'suggest' && <SuggestView showToast={showToast} />}
-        {tab === 'feedback' && <FeedbackView showToast={showToast} />}
+        {tab === 'suggest' && <SuggestView showToast={showToast} user={user} />}
+        {tab === 'feedback' && <FeedbackView showToast={showToast} user={user} />}
         {tab === 'old' && <OldMovies />}
         {tab === 'admin' && user.isAdmin && <AdminView showToast={showToast} />}
       </main>
