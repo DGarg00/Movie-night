@@ -57,6 +57,8 @@ export const api = {
   setLastMovie: (movieId, shownDate) => request('/last-movie', { method: 'POST', body: { movieId, shownDate } }),
   submitFeedback: (rating, comment, experience) => request('/feedback', { method: 'POST', body: { rating, comment, experience } }),
   removeMyComment: () => request('/feedback/comment', { method: 'DELETE' }),
+  deleteFeedback: (id) => request(`/feedback/${id}`, { method: 'DELETE' }),
+  reactFeedback: (id, reaction) => request(`/feedback/${id}/react`, { method: 'POST', body: { reaction } }),
 
   getScreenings: () => request('/screenings'),
 
