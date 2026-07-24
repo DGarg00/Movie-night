@@ -336,12 +336,17 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
   const movieResult = await pool.query('SELECT * FROM movies WHERE id = $1', [screening.movie_id]);
   if (!movieResult.rows[0]) return res.json({ movie: null });
   const feedbackResult = await pool.query(`
-    SELECT f.*, u.name as commenter_name
+    SELECT f.*, u.name as commenter_name,
+      COUNT(DISTINCT CASE WHEN fr.reaction = 'up' THEN fr.reg_no END) as thumbs_up,
+      COUNT(DISTINCT CASE WHEN fr.reaction = 'down' THEN fr.reg_no END) as thumbs_down,
+      MAX(CASE WHEN fr.reg_no = $2 THEN fr.reaction END) as my_reaction
     FROM feedback f
     LEFT JOIN users u ON LOWER(TRIM(u.reg_no)) = LOWER(TRIM(f.reg_no))
+    LEFT JOIN feedback_reactions fr ON fr.feedback_id = f.id
     WHERE f.screening_id = $1
+    GROUP BY f.id, u.name
     ORDER BY f.created_at DESC
-  `, [row.screening_id]);
+  `, [row.screening_id, req.user.regNo]);
   const feedback = feedbackResult.rows;
   const avg = feedback.length ? feedback.reduce((a, f) => a + f.rating, 0) / feedback.length : 0;
   const mine = feedback.find(f => f.reg_no === req.user.regNo);
@@ -351,14 +356,15 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
     shownDate: screening.shown_date,
     experienceOptions: EXPERIENCE_OPTIONS,
     feedback: feedback.map(f => ({
+      id: f.id,
       rating: f.rating, comment: f.comment, experience: f.experience || [],
       name: f.commenter_name || f.reg_no,
+      thumbsUp: Number(f.thumbs_up), thumbsDown: Number(f.thumbs_down), myReaction: f.my_reaction || null,
       createdAt: Number(f.created_at), isMine: f.reg_no === req.user.regNo
     })),
     average: avg,
     myFeedback: mine ? { rating: mine.rating, comment: mine.comment, experience: mine.experience || [] } : null
   });
-}));
 
 app.post('/api/last-movie', requireAdmin, h(async (req, res) => {
   const { movieId, shownDate } = req.body;
@@ -395,11 +401,40 @@ app.post('/api/feedback', requireAuth, h(async (req, res) => {
 }));
 
 // Clear just the comment text on your own feedback — the star rating stays.
+// Clear just the comment text on your own feedback — the star rating stays.
 app.delete('/api/feedback/comment', requireAuth, h(async (req, res) => {
   const rowResult = await pool.query('SELECT * FROM last_movie WHERE id = 1');
   const row = rowResult.rows[0];
   if (!row.screening_id) return res.status(400).json({ error: 'No current movie.' });
   await pool.query('UPDATE feedback SET comment = NULL WHERE screening_id = $1 AND reg_no = $2', [row.screening_id, req.user.regNo]);
+  res.json({ ok: true });
+}));
+
+// Admin removes someone else's feedback entry entirely (rating + comment).
+app.delete('/api/feedback/:id', requireAdmin, h(async (req, res) => {
+  await pool.query('DELETE FROM feedback_reactions WHERE feedback_id = $1', [req.params.id]);
+  await pool.query('DELETE FROM feedback WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
+}));
+
+// Thumbs up/down on someone else's feedback comment. Clicking the same
+// reaction again removes it; clicking the other one switches it.
+app.post('/api/feedback/:id/react', requireAuth, h(async (req, res) => {
+  const { reaction } = req.body;
+  if (!['up', 'down'].includes(reaction)) return res.status(400).json({ error: 'Invalid reaction.' });
+  const feedbackId = req.params.id;
+  const existing = await pool.query(
+    'SELECT reaction FROM feedback_reactions WHERE feedback_id = $1 AND reg_no = $2',
+    [feedbackId, req.user.regNo]
+  );
+  if (existing.rows[0] && existing.rows[0].reaction === reaction) {
+    await pool.query('DELETE FROM feedback_reactions WHERE feedback_id = $1 AND reg_no = $2', [feedbackId, req.user.regNo]);
+  } else {
+    await pool.query(`
+      INSERT INTO feedback_reactions (feedback_id, reg_no, reaction) VALUES ($1, $2, $3)
+      ON CONFLICT (feedback_id, reg_no) DO UPDATE SET reaction = excluded.reaction
+    `, [feedbackId, req.user.regNo, reaction]);
+  }
   res.json({ ok: true });
 }));
 
