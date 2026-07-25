@@ -6,6 +6,7 @@ import SuggestView from './components/SuggestView';
 import FeedbackView from './components/FeedbackView';
 import OldMovies from './components/OldMovies';
 import AdminView from './components/AdminView';
+import BanPopups from './components/BanPopups';
 
 export default function App() {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
@@ -14,6 +15,7 @@ export default function App() {
   const [tab, setTab] = useState('vote');
   const [toast, setToast] = useState('');
   const toastTimer = useRef(null);
+  const [bannedNames, setBannedNames] = useState([]);
 
   const [showAdminClaim, setShowAdminClaim] = useState(false);
   const [adminCode, setAdminCode] = useState('');
@@ -32,6 +34,10 @@ export default function App() {
       try {
         const m = await api.getMaintenance();
         setMaintenanceOn(m.on);
+      } catch {}
+      try {
+        const notice = await api.getBannedNotice();
+        if (notice.on && notice.names.length) setBannedNames(notice.names);
       } catch {}
       setCheckingSession(false);
     })();
@@ -67,16 +73,19 @@ export default function App() {
 
   if (maintenanceOn && (!user || !user.isAdmin)) {
     return (
-      <div className="auth-screen">
-        <h2 className="display">Saturday Night Cinema</h2>
-        <div className="card" style={{ textAlign: 'center', padding: '30px 22px' }}>
-          <p style={{ fontSize: 15, color: 'var(--cream)' }}>Site is down for now. Come again later.</p>
+      <>
+        <div className="auth-screen">
+          <h2 className="display">Saturday Night Cinema</h2>
+          <div className="card" style={{ textAlign: 'center', padding: '30px 22px' }}>
+            <p style={{ fontSize: 15, color: 'var(--cream)' }}>Site is down for now. Come again later.</p>
+          </div>
         </div>
-      </div>
+        <BanPopups names={bannedNames} />
+      </>
     );
   }
 
-  if (!user) return <Auth onAuthed={setUser} />;
+  if (!user) return <><Auth onAuthed={setUser} /><BanPopups names={bannedNames} /></>;
 
   const tabs = [
     { id: 'vote', label: 'Next Saturday' },
@@ -136,6 +145,7 @@ export default function App() {
 
       <footer>Built for movie nights, one Saturday at a time.</footer>
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
+      <BanPopups names={bannedNames} />
     </>
   );
 }
