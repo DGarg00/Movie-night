@@ -31,11 +31,16 @@ export default function AdminView({ showToast }) {
   const [resetEmail, setResetEmail] = useState('');
   const [maintenanceOn, setMaintenanceOn] = useState(false);
 
+  const [users, setUsers] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [banPopupsOn, setBanPopupsOn] = useState(false);
+
   async function loadAll() {
     setLoadError('');
     try {
-      const [mRes, pRes, lmRes, sRes, maintRes] = await Promise.allSettled([
-        api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions(), api.getMaintenance()
+      const [mRes, pRes, lmRes, sRes, maintRes, uRes, bpRes] = await Promise.allSettled([
+        api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions(), api.getMaintenance(),
+        api.getUsers(), api.getBannedNotice()
       ]);
 
       if (mRes.status === 'fulfilled') setMovies(mRes.value);
@@ -49,6 +54,8 @@ export default function AdminView({ showToast }) {
       }
       if (sRes.status === 'fulfilled') setSuggestions(sRes.value.suggestions);
       if (maintRes.status === 'fulfilled') setMaintenanceOn(maintRes.value.on);
+      if (uRes.status === 'fulfilled') setUsers(uRes.value);
+      if (bpRes.status === 'fulfilled') setBanPopupsOn(bpRes.value.on);
 
       const failed = [mRes, pRes, lmRes, sRes].find(r => r.status === 'rejected');
       if (failed) setLoadError(failed.reason?.message || 'Some data could not be loaded.');
@@ -60,6 +67,28 @@ export default function AdminView({ showToast }) {
   }
   useEffect(() => { loadAll(); }, []);
 
+  async function toggleBan(u) {
+    if (!u.banned && !window.confirm(`Ban ${u.name} (${u.email})? They won't be able to sign back in until you unban them.`)) return;
+    try {
+      if (u.banned) await api.unbanUser(u.email);
+      else await api.banUser(u.email);
+      setUsers(prev => prev.map(x => x.email === u.email ? { ...x, banned: !u.banned } : x));
+      showToast(u.banned ? `${u.name} unbanned` : `${u.name} banned`);
+    } catch (err) {
+      showToast(err.message || 'Could not update that account');
+    }
+  }
+
+  async function toggleBanPopups() {
+    const next = !banPopupsOn;
+    try {
+      await api.setBanPopups(next);
+      setBanPopupsOn(next);
+      showToast(next ? 'Ban pop-ups turned on for everyone' : 'Ban pop-ups turned off');
+    } catch (err) {
+      showToast(err.message || 'Could not change that setting');
+    }
+  }
   function updateField(field, value) {
     setForm(f => ({ ...f, [field]: value }));
   }
@@ -302,7 +331,66 @@ export default function AdminView({ showToast }) {
           </div>
         ))}
       </div>
+      
+      <div className="section-head" style={{ marginTop: 34 }}>
+        <div className="dot"></div>
+        <h2 style={{ fontSize: 22 }}>Manage Users</h2>
+        <span className="sub">{users.length} signed in</span>
+      </div>
+      <div className="card">
+        <div className="switch-row">
+          <div>
+            <div className="name" style={{ marginBottom: 2 }}>Show ban pop-ups</div>
+            <div className="tag">When on, everyone who opens the site sees who's been banned.</div>
+          </div>
+          <button
+            type="button"
+            className={`switch ${banPopupsOn ? 'on' : ''}`}
+            onClick={toggleBanPopups}
+            aria-pressed={banPopupsOn}
+            aria-label="Toggle ban pop-ups"
+          >
+            <span className="knob"></span>
+          </button>
+        </div>
 
+        <input
+          type="text"
+          value={userSearch}
+          onChange={e => setUserSearch(e.target.value)}
+          placeholder="Search by name or email…"
+          style={{ marginTop: 16, marginBottom: 4 }}
+        />
+
+        {users.length === 0 && <p style={{ color: 'var(--slate)', fontSize: 13, marginTop: 10 }}>No one has signed in yet.</p>}
+
+        {users.length > 0 && (
+          <div className="user-table" style={{ marginTop: 12 }}>
+            <div className="user-table-head">
+              <span>Name</span><span>Email</span><span></span>
+            </div>
+            {users
+              .filter(u =>
+                u.name.toLowerCase().includes(userSearch.trim().toLowerCase()) ||
+                u.email.toLowerCase().includes(userSearch.trim().toLowerCase())
+              )
+              .map(u => (
+                <div className="user-table-row" key={u.email}>
+                  <span className="name">{u.name}{u.isAdmin ? <span className="tag" style={{ marginLeft: 6 }}>admin</span> : ''}</span>
+                  <span className="tag">{u.email}</span>
+                  <button
+                    className={`btn ${u.banned ? 'btn-primary' : 'btn-ghost'}`}
+                    style={u.banned ? {} : { color: 'var(--red)', borderColor: 'var(--red)' }}
+                    onClick={() => toggleBan(u)}
+                  >
+                    {u.banned ? 'Unban' : 'Ban'}
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+      
       <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Site Access</h2></div>
       <div className="card">
         <p style={{ color: 'var(--slate)', fontSize: 13, marginBottom: 12 }}>
