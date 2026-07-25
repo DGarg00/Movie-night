@@ -168,7 +168,7 @@ footer{ text-align:center; padding:26px; color:var(--line); font-size:12px; }
 }
 
 .ban-popup-stack{ position:fixed; top:18px; right:18px; z-index:300; display:flex; flex-direction:column; align-items:flex-end; pointer-events:none; }
-.ban-popup{ background:var(--red); color:#fff; padding:12px 18px; border-radius:10px; font-size:13px; font-weight:600; max-width:280px; box-shadow:0 8px 22px rgba(0,0,0,0.4); opacity:0; transform:translateX(24px); transition:opacity .4s ease, transform .4s ease; }
+.ban-popup{ background:var(--red); color:#fff; padding:12px 18px; border-radius:10px; font-size:13px; font-weight:600; max-width:280px; box-shadow:0 8px 22px rgba(0,0,0,0.4); opacity:0; transform:translateX(24px); transition:opacity .6s ease, transform .6s ease; }
 .ban-popup.show{ opacity:1; transform:translateX(0); }
 small.hint{ display:block; color:var(--slate); font-size:11.5px; margin:-10px 0 16px; }
 
