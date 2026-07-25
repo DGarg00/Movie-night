@@ -7,6 +7,7 @@ import FeedbackView from './components/FeedbackView';
 import OldMovies from './components/OldMovies';
 import AdminView from './components/AdminView';
 import BanPopups from './components/BanPopups';
+import AboutUs from './components/AboutUs';
 
 export default function App() {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
@@ -92,6 +93,7 @@ export default function App() {
     { id: 'suggest', label: 'Suggest a Movie' },
     { id: 'feedback', label: 'Feedback' },
     { id: 'old', label: 'Old Movies' },
+    { id: 'about', label: 'About Us' },
     ...(user.isAdmin ? [{ id: 'admin', label: 'Admin' }] : [])
   ];
 
@@ -140,6 +142,7 @@ export default function App() {
         {tab === 'suggest' && <SuggestView showToast={showToast} user={user} />}
         {tab === 'feedback' && <FeedbackView showToast={showToast} user={user} />}
         {tab === 'old' && <OldMovies />}
+        {tab === 'about' && <AboutUs />}
         {tab === 'admin' && user.isAdmin && <AdminView showToast={showToast} />}
       </main>
 
