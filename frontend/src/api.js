@@ -64,5 +64,12 @@ export const api = {
 
   getScreenings: () => request('/screenings'),
 
-  adminReset: (scope) => request('/admin/reset', { method: 'POST', body: { scope } })
+  adminReset: (scope) => request('/admin/reset', { method: 'POST', body: { scope } }),
+
+  getUsers: () => request('/admin/users'),
+  banUser: (email) => request('/admin/users/ban', { method: 'POST', body: { email } }),
+  unbanUser: (email) => request('/admin/users/unban', { method: 'POST', body: { email } }),
+  getBannedNotice: () => request('/banned-notice'),
+  setBanPopups: (on) => request('/admin/ban-popups', { method: 'POST', body: { on } })
+};
 };
