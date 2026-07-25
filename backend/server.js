@@ -46,6 +46,9 @@ app.post('/api/auth/google', h(async (req, res) => {
   const existing = await pool.query('SELECT * FROM users WHERE reg_no = $1', [email]);
   let user;
   if (existing.rows.length) {
+    if (Number(existing.rows[0].is_banned) === 1) {
+      return res.status(403).json({ error: 'This account has been banned.', banned: true });
+    }
     await pool.query('UPDATE users SET name = $1 WHERE reg_no = $2', [name, email]);
     user = { ...existing.rows[0], name };
   } else {
@@ -146,14 +149,8 @@ app.put('/api/movies/:id', requireAdmin, h(async (req, res) => {
 
 app.delete('/api/movies/:id', requireAdmin, h(async (req, res) => {
   const movieId = req.params.id;
-
-  const screeningIds = await pool.query('SELECT id FROM screenings WHERE movie_id = $1', [movieId]);
-  const ids = screeningIds.rows.map(r => r.id);
-  if (ids.length) {
-    await pool.query('DELETE FROM feedback WHERE screening_id = ANY($1::int[])', [ids]);
-    await pool.query('UPDATE last_movie SET screening_id = NULL, set_at = NULL WHERE screening_id = ANY($1::int[])', [ids]);
-    await pool.query('DELETE FROM screenings WHERE id = ANY($1::int[])', [ids]);
-  }
+  // Screenings now keep their own permanent snapshot (see ensureExtraColumns),
+  // so deleting a movie no longer touches any past history.
   await pool.query('DELETE FROM poll_nominees WHERE movie_id = $1', [movieId]);
   await pool.query('DELETE FROM votes WHERE movie_id = $1', [movieId]);
   await pool.query('DELETE FROM movies WHERE id = $1', [movieId]);
@@ -333,8 +330,7 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
   const screeningResult = await pool.query('SELECT * FROM screenings WHERE id = $1', [row.screening_id]);
   const screening = screeningResult.rows[0];
   if (!screening) return res.json({ movie: null });
-  const movieResult = await pool.query('SELECT * FROM movies WHERE id = $1', [screening.movie_id]);
-  if (!movieResult.rows[0]) return res.json({ movie: null });
+
   const feedbackResult = await pool.query(`
     SELECT f.*, u.name as commenter_name,
       COUNT(DISTINCT CASE WHEN fr.reaction = 'up' THEN fr.reg_no END) as thumbs_up,
@@ -354,7 +350,7 @@ app.get('/api/last-movie', requireAuth, h(async (req, res) => {
   const mine = feedback.find(f => f.reg_no === req.user.regNo);
 
   res.json({
-    movie: serializeMovie(movieResult.rows[0]),
+    movie: serializeMovie(screening),
     shownDate: screening.shown_date,
     experienceOptions: EXPERIENCE_OPTIONS,
     feedback: feedback.map(f => ({
@@ -375,10 +371,21 @@ app.post('/api/last-movie', requireAdmin, h(async (req, res) => {
   if (!movieId) return res.status(400).json({ error: 'Pick a movie.' });
   const date = shownDate || new Date().toISOString().slice(0, 10);
 
-  const info = await pool.query(
-    'INSERT INTO screenings (movie_id, shown_date, created_at) VALUES ($1, $2, $3) RETURNING id',
-    [movieId, date, Date.now()]
-  );
+  const movieResult = await pool.query('SELECT * FROM movies WHERE id = $1', [movieId]);
+  const movie = movieResult.rows[0];
+  if (!movie) return res.status(404).json({ error: 'Movie not found.' });
+
+  const info = await pool.query(`
+    INSERT INTO screenings (
+      movie_id, shown_date, created_at,
+      title, poster_url, genre, duration, language, year, imdb_rating, pg_tag, pg_detail, storyline
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    RETURNING id
+  `, [
+    movieId, date, Date.now(),
+    movie.title, movie.poster_url, movie.genre, movie.duration, movie.language,
+    movie.year, movie.imdb_rating, movie.pg_tag, movie.pg_detail, movie.storyline
+  ]);
   await pool.query('UPDATE last_movie SET screening_id = $1, set_at = $2 WHERE id = 1', [info.rows[0].id, Date.now()]);
   res.json({ ok: true });
 }));
@@ -445,13 +452,12 @@ app.post('/api/feedback/:id/react', requireAuth, h(async (req, res) => {
 // "Old Movies" — every past screening, most recent first.
 app.get('/api/screenings', requireAuth, h(async (req, res) => {
   const result = await pool.query(`
-    SELECT s.id, s.shown_date, m.*,
+    SELECT s.*,
       COALESCE(AVG(f.rating), 0) as avg_rating,
       COUNT(f.id) as feedback_count
     FROM screenings s
-    JOIN movies m ON m.id = s.movie_id
     LEFT JOIN feedback f ON f.screening_id = s.id
-    GROUP BY s.id, m.id
+    GROUP BY s.id
     ORDER BY s.shown_date DESC, s.id DESC
   `);
   res.json(result.rows.map(r => ({
@@ -469,15 +475,12 @@ app.get('/api/screenings', requireAuth, h(async (req, res) => {
 
 app.post('/api/admin/reset', requireAdmin, h(async (req, res) => {
   const { scope } = req.body;
-  const valid = ['movies', 'poll', 'suggestions', 'history', 'everything'];
+  const valid = ['movies', 'poll', 'suggestions', 'feedback', 'history', 'everything'];
   if (!valid.includes(scope)) return res.status(400).json({ error: 'Unknown reset scope.' });
 
   if (scope === 'movies' || scope === 'everything') {
     await pool.query('DELETE FROM poll_nominees');
     await pool.query('DELETE FROM votes');
-    await pool.query('DELETE FROM feedback');
-    await pool.query('DELETE FROM screenings');
-    await pool.query('UPDATE last_movie SET screening_id = NULL, set_at = NULL WHERE id = 1');
     await pool.query('DELETE FROM movies');
   }
   if (scope === 'poll' || scope === 'everything') {
@@ -490,7 +493,12 @@ app.post('/api/admin/reset', requireAdmin, h(async (req, res) => {
     await pool.query('DELETE FROM suggestions');
     await pool.query('UPDATE users SET suggestion_allowance = 1');
   }
-  if (scope === 'history' || scope === 'everything') {
+  if (scope === 'feedback') {
+    await pool.query('DELETE FROM feedback_reactions');
+    await pool.query('DELETE FROM feedback');
+  }
+  if (scope === 'history') {
+    await pool.query('DELETE FROM feedback_reactions');
     await pool.query('DELETE FROM feedback');
     await pool.query('DELETE FROM screenings');
     await pool.query('UPDATE last_movie SET screening_id = NULL, set_at = NULL WHERE id = 1');
@@ -521,8 +529,87 @@ app.post('/api/admin/maintenance', requireAdmin, h(async (req, res) => {
   res.json({ ok: true });
 }));
 
+async function ensureExtraColumns() {
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at BIGINT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS title TEXT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS poster_url TEXT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS genre TEXT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS duration INTEGER;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS language TEXT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS year INTEGER;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS imdb_rating REAL;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS pg_tag TEXT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS pg_detail TEXT;`);
+  await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS storyline TEXT;`);
+  await pool.query(`
+    UPDATE screenings s SET
+      title = m.title, poster_url = m.poster_url, genre = m.genre, duration = m.duration,
+      language = m.language, year = m.year, imdb_rating = m.imdb_rating,
+      pg_tag = m.pg_tag, pg_detail = m.pg_detail, storyline = m.storyline
+    FROM movies m WHERE s.movie_id = m.id AND s.title IS NULL
+  `).catch(() => {});
+}
+
+async function getSetting(key, fallback) {
+  const r = await pool.query('SELECT value FROM settings WHERE key = $1', [key]);
+  return r.rows[0] ? r.rows[0].value : fallback;
+}
+async function setSetting(key, value) {
+  await pool.query(
+    'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+    [key, value]
+  );
+}
+
+app.get('/api/admin/users', requireAdmin, h(async (req, res) => {
+  const result = await pool.query('SELECT reg_no, name, is_admin, is_banned FROM users ORDER BY name ASC');
+  res.json(result.rows.map(u => ({ email: u.reg_no, name: u.name, isAdmin: !!u.is_admin, banned: !!u.is_banned })));
+}));
+
+app.post('/api/admin/users/ban', requireAdmin, h(async (req, res) => {
+  const { email } = req.body;
+  const target = await pool.query('SELECT * FROM users WHERE reg_no = $1', [email]);
+  if (!target.rows[0]) return res.status(404).json({ error: 'No account with that email.' });
+  if (target.rows[0].is_admin) return res.status(400).json({ error: "Admin accounts can't be banned." });
+  await pool.query('UPDATE users SET is_banned = 1, banned_at = $1 WHERE reg_no = $2', [Date.now(), email]);
+  res.json({ ok: true });
+}));
+
+app.post('/api/admin/users/unban', requireAdmin, h(async (req, res) => {
+  await pool.query('UPDATE users SET is_banned = 0, banned_at = NULL WHERE reg_no = $1', [req.body.email]);
+  res.json({ ok: true });
+}));
+
+app.get('/api/banned-notice', h(async (req, res) => {
+  const on = (await getSetting('ban_popups', 'off')) === 'on';
+  let names = [];
+  if (on) {
+    const r = await pool.query('SELECT name FROM users WHERE is_banned = 1 ORDER BY banned_at DESC');
+    names = r.rows.map(u => u.name);
+  }
+  res.json({ on, names });
+}));
+
+app.post('/api/admin/ban-popups', requireAdmin, h(async (req, res) => {
+  await setSetting('ban_popups', req.body.on ? 'on' : 'off');
+  res.json({ ok: true });
+}));
+
+app.get('/api/notice', h(async (req, res) => {
+  res.json({ on: (await getSetting('notice_on', 'off')) === 'on', message: await getSetting('notice_message', '') });
+}));
+
+app.post('/api/admin/notice', requireAdmin, h(async (req, res) => {
+  const { on, message } = req.body;
+  if (on !== undefined) await setSetting('notice_on', on ? 'on' : 'off');
+  if (message !== undefined) await setSetting('notice_message', message);
+  res.json({ ok: true });
+}));
+
 init()
   .then(ensureMaintenanceTable)
+  .then(ensureExtraColumns)
   .then(() => {
     app.listen(PORT, () => console.log(`Movie Night API running on http://localhost:${PORT}`));
   })
