@@ -9,9 +9,10 @@ const emptyForm = {
 const RESET_SCOPES = [
   { id: 'poll', label: 'Reset Poll / Votes', desc: 'Clears this week\'s nominees and votes. Movie library stays.' },
   { id: 'suggestions', label: 'Reset Suggestions', desc: 'Deletes all suggestions & votes, and gives everyone their suggestion back.' },
-  { id: 'history', label: 'Reset Old Movies & Ratings', desc: 'Wipes the Old Movies history and all feedback/ratings.' },
-  { id: 'movies', label: 'Reset Movie Library', desc: 'Deletes every movie, plus anything that depends on them (poll, history, feedback).' },
-  { id: 'everything', label: 'Reset Everything', desc: "Wipes all of the above. Doesn't delete anyone's login." }
+  { id: 'feedback', label: 'Reset Feedback', desc: 'Wipes every rating/comment ever left, but keeps the Old Movies entries themselves.' },
+  { id: 'movies', label: 'Reset Movie Library', desc: 'Deletes every movie from the library. Old Movies history is untouched.' },
+  { id: 'history', label: 'Reset Old Movies & Ratings', desc: 'The only option that actually deletes Old Movies entries themselves.' },
+  { id: 'everything', label: 'Reset Everything', desc: "Wipes movies, poll, and suggestions — Old Movies history is kept permanently." }
 ];
 
 export default function AdminView({ showToast }) {
