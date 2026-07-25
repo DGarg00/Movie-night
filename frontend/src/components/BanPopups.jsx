@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-const HOLD_MS = 2600;
-const FADE_MS = 400;
+const HOLD_MS = 5000;
+const FADE_MS = 600;
 
 export default function BanPopups({ names }) {
   const [queue, setQueue] = useState([]);
