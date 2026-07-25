@@ -72,4 +72,3 @@ export const api = {
   getBannedNotice: () => request('/banned-notice'),
   setBanPopups: (on) => request('/admin/ban-popups', { method: 'POST', body: { on } })
 };
-};
