@@ -7,7 +7,7 @@ export default function AboutUs() {
       <div className="about-card about-featured">
         <img
           className="about-photo about-photo-featured"
-          src="https://drive.google.com/uc?export=view&id=1DFESa8xV8JITu-no-8O7HWlUfnTv6xh6"
+          src="https://drive.google.com/thumbnail?id=1DFESa8xV8JITu-no-8O7HWlUfnTv6xh6&sz=w1000"
           alt="Teacher name"
         />
         <div className="about-info">
