@@ -396,6 +396,13 @@ app.post('/api/feedback', requireAuth, h(async (req, res) => {
   const row = rowResult.rows[0];
   if (!row.screening_id) return res.status(400).json({ error: 'No movie has been marked as shown yet.' });
   if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5.' });
+  if (comment) {
+    const trimmed = comment.trim();
+    if (trimmed.length > 150) return res.status(400).json({ error: 'Comments can be at most 150 characters.' });
+    if (trimmed.split(/[\s_]+/).filter(Boolean).length > 20) {
+      return res.status(400).json({ error: 'Comments can be at most 20 words.' });
+    }
+  }
 
   const screeningResult = await pool.query('SELECT movie_id FROM screenings WHERE id = $1', [row.screening_id]);
   const expArray = Array.isArray(experience) ? experience.filter(e => EXPERIENCE_OPTIONS.includes(e)) : [];
@@ -532,6 +539,7 @@ app.post('/api/admin/maintenance', requireAdmin, h(async (req, res) => {
 async function ensureExtraColumns() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at BIGINT;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen BIGINT;`);
   await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS title TEXT;`);
   await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS poster_url TEXT;`);
   await pool.query(`ALTER TABLE screenings ADD COLUMN IF NOT EXISTS genre TEXT;`);
@@ -594,6 +602,29 @@ app.get('/api/banned-notice', h(async (req, res) => {
 app.post('/api/admin/ban-popups', requireAdmin, h(async (req, res) => {
   await setSetting('ban_popups', req.body.on ? 'on' : 'off');
   res.json({ ok: true });
+}));
+
+app.get('/api/notice', h(async (req, res) => {
+  res.json({ on: (await getSetting('notice_on', 'off')) === 'on', message: await getSetting('notice_message', '') });
+}));
+
+app.post('/api/admin/notice', requireAdmin, h(async (req, res) => {
+  const { on, message } = req.body;
+  if (on !== undefined) await setSetting('notice_on', on ? 'on' : 'off');
+  if (message !== undefined) await setSetting('notice_message', message);
+  res.json({ ok: true });
+}));
+
+app.post('/api/presence/ping', requireAuth, h(async (req, res) => {
+  await pool.query('UPDATE users SET last_seen = $1 WHERE reg_no = $2', [Date.now(), req.user.regNo]);
+  res.json({ ok: true });
+}));
+
+app.get('/api/admin/presence', requireAdmin, h(async (req, res) => {
+  const cutoff = Date.now() - 90 * 1000;
+  const onlineResult = await pool.query('SELECT COUNT(*) c FROM users WHERE last_seen >= $1', [cutoff]);
+  const totalResult = await pool.query('SELECT COUNT(*) c FROM users');
+  res.json({ online: Number(onlineResult.rows[0].c), visited: Number(totalResult.rows[0].c) });
 }));
 
 app.get('/api/notice', h(async (req, res) => {
