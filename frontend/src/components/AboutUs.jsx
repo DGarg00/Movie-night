@@ -23,7 +23,7 @@ export default function AboutUs() {
       {/* The two student admins — smaller, plain cards side by side */}
       <div className="about-grid">
         <div className="about-card">
-          <img className="about-photo" src="https://drive.google.com/thumbnail?id=1JryZ3na3EgLNHSgCMCzxXb_Wgj-IYl9D&sz=w1000" alt="Your name" />
+          <img className="about-photo" src="https://drive.google.com/thumbnail?id=1KSeeiMmDozgyXUwxQ1MV_LoKJzv0y73O&sz=w1000" alt="Your name" />
           <div className="about-info">
             <h3 className="about-name">Divya Garg</h3>
             <p className="about-bio">Trying his level best to give best movies but rejected everytime.</p>
