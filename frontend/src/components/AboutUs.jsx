@@ -12,10 +12,10 @@ export default function AboutUs() {
         />
         <div className="about-info">
           <span className="about-tag-featured">Faculty In-Charge</span>
-          <h3 className="about-name-featured">Teacher's Full Name</h3>
+          <h3 className="about-name-featured">Shri Nanda Gopal</h3>
           <p className="about-bio">
-            Write a couple of sentences here — their role in the department,
-            how long they've supported movie night, anything you'd like to say about them.
+            A all-rounder professor and faculty in-charge of student activities.
+     He has supported our Saturday movie nights since they began.
           </p>
         </div>
       </div>
@@ -25,16 +25,16 @@ export default function AboutUs() {
         <div className="about-card">
           <img className="about-photo" src="PASTE_YOUR_PHOTO_URL_HERE" alt="Your name" />
           <div className="about-info">
-            <h3 className="about-name">Your Full Name</h3>
-            <p className="about-bio">A line or two about yourself and your role running movie night.</p>
+            <h3 className="about-name">Divya Garg</h3>
+            <p className="about-bio">Trying his level best to give best movies but rejected everytime.</p>
           </div>
         </div>
 
         <div className="about-card">
           <img className="about-photo" src="PASTE_FRIEND_PHOTO_URL_HERE" alt="Friend's name" />
           <div className="about-info">
-            <h3 className="about-name">Friend's Full Name</h3>
-            <p className="about-bio">A line or two about them and their role running movie night.</p>
+            <h3 className="about-name">Bharata Sridatta Vishvnath</h3>
+            <p className="about-bio">Trying his level best to give best movies but rejected everytime.</p>
           </div>
         </div>
       </div>
