@@ -32,10 +32,6 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export const api = {
-  getNotice: () => request('/notice'),
-  updateNotice: (on, message) => request('/admin/notice', { method: 'POST', body: { on, message } }),
-  ping: () => request('/presence/ping', { method: 'POST' }),
-  getPresence: () => request('/admin/presence')
   
   googleAuth: (credential) => request('/auth/google', { method: 'POST', body: { credential } }),
   claimAdmin: (code) => request('/auth/claim-admin', { method: 'POST', body: { code } }),
@@ -75,6 +71,11 @@ export const api = {
   banUser: (email) => request('/admin/users/ban', { method: 'POST', body: { email } }),
   unbanUser: (email) => request('/admin/users/unban', { method: 'POST', body: { email } }),
   getBannedNotice: () => request('/banned-notice'),
-  setBanPopups: (on) => request('/admin/ban-popups', { method: 'POST', body: { on } })
+  setBanPopups: (on) => request('/admin/ban-popups', { method: 'POST', body: { on } }),
 
+  getNotice: () => request('/notice'),
+  updateNotice: (on, message) => request('/admin/notice', { method: 'POST', body: { on, message } }),
+  ping: () => request('/presence/ping', { method: 'POST' }),
+  getPresence: () => request('/admin/presence')
+  
 };
