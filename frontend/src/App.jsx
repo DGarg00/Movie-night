@@ -37,6 +37,7 @@ export default function App() {
   const [notice, setNotice] = useState({ on: false, message: '' });
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [presence, setPresence] = useState(null);
+  const [showOnlineList, setShowOnlineList] = useState(false);
 
   const [showAdminClaim, setShowAdminClaim] = useState(false);
   const [adminCode, setAdminCode] = useState('');
@@ -155,7 +156,20 @@ export default function App() {
 
         {user.isAdmin && presence && (
           <div className="presence-widget">
-            <div><span className="presence-dot presence-dot-online"></span>Online: {presence.online}</div>
+            <div
+              style={{ position: 'relative', cursor: 'pointer' }}
+              onMouseEnter={() => setShowOnlineList(true)}
+              onMouseLeave={() => setShowOnlineList(false)}
+            >
+              <span className="presence-dot presence-dot-online"></span>Online: {presence.online}
+              {showOnlineList && (
+                <div className="online-list-popover">
+                  {presence.onlineNames && presence.onlineNames.length > 0
+                    ? presence.onlineNames.map((n, i) => <div key={i}>{n}</div>)
+                    : <div style={{ color: 'var(--slate)' }}>No one online</div>}
+                </div>
+              )}
+            </div>
             <div><span className="presence-dot presence-dot-visited"></span>Visited: {presence.visited}</div>
           </div>
         )}
