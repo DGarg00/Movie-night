@@ -640,9 +640,13 @@ app.post('/api/presence/ping', requireAuth, h(async (req, res) => {
 
 app.get('/api/admin/presence', requireAdmin, h(async (req, res) => {
   const cutoff = Date.now() - 90 * 1000;
-  const onlineResult = await pool.query('SELECT COUNT(*) c FROM users WHERE last_seen >= $1', [cutoff]);
+  const onlineResult = await pool.query('SELECT name FROM users WHERE last_seen >= $1 ORDER BY name ASC', [cutoff]);
   const totalResult = await pool.query('SELECT COUNT(*) c FROM users');
-  res.json({ online: Number(onlineResult.rows[0].c), visited: Number(totalResult.rows[0].c) });
+  res.json({
+    online: onlineResult.rows.length,
+    onlineNames: onlineResult.rows.map(r => r.name),
+    visited: Number(totalResult.rows[0].c)
+  });
 }));
 
 app.get('/api/notice', h(async (req, res) => {
