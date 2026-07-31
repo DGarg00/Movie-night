@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import Collapsible from './Collapsible';
 
 const emptyForm = {
   title: '', genre: '', duration: '', language: '', year: '',
@@ -26,7 +27,7 @@ export default function AdminView({ showToast }) {
   const [posterUrl, setPosterUrl] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [checkedNominees, setCheckedNominees] = useState([]);
-  
+
   const [lastMovieSelect, setLastMovieSelect] = useState('');
   const [shownDate, setShownDate] = useState(new Date().toISOString().slice(0, 10));
   const [resetEmail, setResetEmail] = useState('');
@@ -36,12 +37,15 @@ export default function AdminView({ showToast }) {
   const [userSearch, setUserSearch] = useState('');
   const [banPopupsOn, setBanPopupsOn] = useState(false);
 
+  const [noticeOn, setNoticeOn] = useState(false);
+  const [noticeMessage, setNoticeMessage] = useState('');
+
   async function loadAll() {
     setLoadError('');
     try {
-      const [mRes, pRes, lmRes, sRes, maintRes, uRes, bpRes] = await Promise.allSettled([
+      const [mRes, pRes, lmRes, sRes, maintRes, uRes, bpRes, nRes] = await Promise.allSettled([
         api.getMovies(), api.getPoll(), api.getLastMovie(), api.getSuggestions(), api.getMaintenance(),
-        api.getUsers(), api.getBannedNotice()
+        api.getUsers(), api.getBannedNotice(), api.getNotice()
       ]);
 
       if (mRes.status === 'fulfilled') setMovies(mRes.value);
@@ -57,6 +61,10 @@ export default function AdminView({ showToast }) {
       if (maintRes.status === 'fulfilled') setMaintenanceOn(maintRes.value.on);
       if (uRes.status === 'fulfilled') setUsers(uRes.value);
       if (bpRes.status === 'fulfilled') setBanPopupsOn(bpRes.value.on);
+      if (nRes.status === 'fulfilled') {
+        setNoticeOn(nRes.value.on);
+        setNoticeMessage(nRes.value.message || '');
+      }
 
       const failed = [mRes, pRes, lmRes, sRes].find(r => r.status === 'rejected');
       if (failed) setLoadError(failed.reason?.message || 'Some data could not be loaded.');
@@ -90,6 +98,27 @@ export default function AdminView({ showToast }) {
       showToast(err.message || 'Could not change that setting');
     }
   }
+
+  async function toggleNoticeOn() {
+    const next = !noticeOn;
+    try {
+      await api.updateNotice(next, noticeMessage);
+      setNoticeOn(next);
+      showToast(next ? 'Notice turned on for everyone' : 'Notice turned off');
+    } catch (err) {
+      showToast(err.message || 'Could not change that setting');
+    }
+  }
+
+  async function saveNoticeMessage() {
+    try {
+      await api.updateNotice(noticeOn, noticeMessage);
+      showToast('Notice message saved');
+    } catch (err) {
+      showToast(err.message || 'Could not save the notice');
+    }
+  }
+
   function updateField(field, value) {
     setForm(f => ({ ...f, [field]: value }));
   }
@@ -201,8 +230,8 @@ export default function AdminView({ showToast }) {
           <button className="btn btn-ghost" style={{ marginLeft: 10 }} onClick={loadAll}>Retry</button>
         </div>
       )}
-      <div className="section-head"><div className="dot"></div><h2 style={{ fontSize: 22 }}>{editingId ? 'Edit Movie' : 'Add A Movie'}</h2></div>
-      <div className="card">
+
+      <Collapsible title={editingId ? 'Edit Movie' : 'Add A Movie'} defaultOpen>
         <label>Title</label>
         <input type="text" value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Inception" />
 
@@ -241,10 +270,9 @@ export default function AdminView({ showToast }) {
         <textarea value={form.storyline} onChange={e => updateField('storyline', e.target.value)} placeholder="Short synopsis, like the one Google shows on the right" />
         <button className="btn btn-primary" onClick={saveMovie}>{editingId ? 'Update Movie' : 'Add To Library'}</button>
         {editingId && <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={cancelEdit}>Cancel Edit</button>}
-      </div>
+      </Collapsible>
 
-      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Movie Library</h2></div>
-      <div className="card">
+      <Collapsible title="Movie Library" badge={`${movies.length} movies`}>
         {movies.length === 0 && <p style={{ color: 'var(--slate)', fontSize: 13 }}>No movies added yet.</p>}
         {movies.map(m => (
           <div className="movie-lib-row" key={m.id}>
@@ -256,10 +284,9 @@ export default function AdminView({ showToast }) {
             <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={() => deleteMovie(m.id)}>Remove</button>
           </div>
         ))}
-      </div>
+      </Collapsible>
 
-      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Set Next Saturday's Nominees</h2></div>
-      <div className="card">
+      <Collapsible title="Set Next Saturday's Nominees">
         <small className="hint">Pick 2–3 movies. Saving resets the current vote count.</small>
         {movies.length === 0 && <p style={{ color: 'var(--slate)', fontSize: 13 }}>Add movies to the library first.</p>}
         {movies.map(m => (
@@ -275,10 +302,9 @@ export default function AdminView({ showToast }) {
         <div style={{ marginTop: 14 }}>
           <button className="btn btn-primary" onClick={saveNominees}>Save Nominees &amp; Reset Votes</button>
         </div>
-      </div>
+      </Collapsible>
 
-      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Mark Last Shown Movie</h2></div>
-      <div className="card">
+      <Collapsible title="Mark Last Shown Movie">
         <small className="hint">
           This creates a new entry in "Old Movies" and opens ratings for it. Past screenings and their ratings stay in history.
         </small>
@@ -302,10 +328,9 @@ export default function AdminView({ showToast }) {
           </div>
         </div>
         <button className="btn btn-primary" onClick={saveLastMovie}>Save &amp; Open For Ratings</button>
-      </div>
+      </Collapsible>
 
-      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Suggestions From Everyone</h2></div>
-      <div className="card">
+      <Collapsible title="Suggestions From Everyone" badge={`${suggestions.length} suggestions`}>
         <div className="grid2" style={{ marginBottom: 16 }}>
           <div>
             <label>Reset one person's suggestion limit</label>
@@ -331,14 +356,9 @@ export default function AdminView({ showToast }) {
             <button className="btn btn-ghost" onClick={() => removeSuggestion(s.id)}>Remove</button>
           </div>
         ))}
-      </div>
-      
-      <div className="section-head" style={{ marginTop: 34 }}>
-        <div className="dot"></div>
-        <h2 style={{ fontSize: 22 }}>Manage Users</h2>
-        <span className="sub">{users.length} signed in</span>
-      </div>
-      <div className="card">
+      </Collapsible>
+
+      <Collapsible title="Manage Users" badge={`${users.length} signed in`}>
         <div className="switch-row">
           <div>
             <div className="name" style={{ marginBottom: 2 }}>Show ban pop-ups</div>
@@ -390,20 +410,46 @@ export default function AdminView({ showToast }) {
               ))}
           </div>
         )}
-      </div>
-      
-      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Site Access</h2></div>
-      <div className="card">
+      </Collapsible>
+
+      <Collapsible title="Site Notice">
+        <div className="switch-row">
+          <div>
+            <div className="name" style={{ marginBottom: 2 }}>Show notice to everyone</div>
+            <div className="tag">When on, anyone opening the site sees this message first, with an OK button.</div>
+          </div>
+          <button
+            type="button"
+            className={`switch ${noticeOn ? 'on' : ''}`}
+            onClick={toggleNoticeOn}
+            aria-pressed={noticeOn}
+            aria-label="Toggle site notice"
+          >
+            <span className="knob"></span>
+          </button>
+        </div>
+        <label style={{ marginTop: 16 }}>Notice message</label>
+        <textarea
+          value={noticeMessage}
+          onChange={e => setNoticeMessage(e.target.value)}
+          placeholder="e.g. No movie night this Saturday — resuming next week!"
+        />
+        <button className="btn btn-primary" onClick={saveNoticeMessage}>Save Message</button>
+        <small className="hint" style={{ marginTop: 10 }}>
+          You can change this message any time — just edit the text above and click Save. It updates for everyone immediately.
+        </small>
+      </Collapsible>
+
+      <Collapsible title="Site Access">
         <p style={{ color: 'var(--slate)', fontSize: 13, marginBottom: 12 }}>
           Turn this on while making changes — everyone except admins sees "Site is down for now" instead of the app.
         </p>
         <button className={`btn ${maintenanceOn ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleMaintenance}>
           {maintenanceOn ? 'Maintenance Mode: ON — Click to turn OFF' : 'Maintenance Mode: OFF — Click to turn ON'}
         </button>
-      </div>
+      </Collapsible>
 
-      <div className="section-head" style={{ marginTop: 34 }}><div className="dot"></div><h2 style={{ fontSize: 22 }}>Danger Zone — Reset</h2></div>
-      <div className="card">
+      <Collapsible title="Danger Zone — Reset">
         {RESET_SCOPES.map(r => (
           <div className="movie-lib-row" key={r.id}>
             <div>
@@ -413,7 +459,7 @@ export default function AdminView({ showToast }) {
             <button className="btn btn-ghost" onClick={() => runReset(r.id, r.label)}>Reset</button>
           </div>
         ))}
-      </div>
+      </Collapsible>
     </section>
   );
 }
