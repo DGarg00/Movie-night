@@ -173,12 +173,18 @@ app.get('/api/poll', requireAuth, h(async (req, res) => {
   `, [poll.id]);
 
   const voteCounts = await pool.query(`
-    SELECT movie_id, COUNT(*) c FROM votes WHERE poll_id = $1 GROUP BY movie_id
+    SELECT v.movie_id, COUNT(*) c FROM votes v
+    JOIN poll_nominees pn ON pn.poll_id = v.poll_id AND pn.movie_id = v.movie_id
+    WHERE v.poll_id = $1 GROUP BY v.movie_id
   `, [poll.id]);
   const votes = {};
   voteCounts.rows.forEach(v => { votes[v.movie_id] = Number(v.c); });
 
-  const myVoteRow = await pool.query('SELECT movie_id FROM votes WHERE poll_id = $1 AND reg_no = $2', [poll.id, req.user.regNo]);
+  const myVoteRow = await pool.query(`
+    SELECT v.movie_id FROM votes v
+    JOIN poll_nominees pn ON pn.poll_id = v.poll_id AND pn.movie_id = v.movie_id
+    WHERE v.poll_id = $1 AND v.reg_no = $2
+  `, [poll.id, req.user.regNo]);
 
   res.json({
     nominees: nomineeRows.rows.map(serializeMovie),
@@ -208,16 +214,28 @@ app.post('/api/poll/vote', requireAuth, h(async (req, res) => {
 }));
 
 app.post('/api/poll/nominees', requireAdmin, h(async (req, res) => {
-  const { movieIds } = req.body;
+  const { movieIds, resetVotes } = req.body;
   if (!Array.isArray(movieIds) || movieIds.length < 2) {
     return res.status(400).json({ error: 'Pick at least 2 movies.' });
   }
-  await pool.query('UPDATE polls SET is_active = 0 WHERE is_active = 1');
-  const info = await pool.query('INSERT INTO polls (is_active, created_at) VALUES (1, $1) RETURNING id', [Date.now()]);
-  const pollId = info.rows[0].id;
-  for (const id of movieIds) {
-    await pool.query('INSERT INTO poll_nominees (poll_id, movie_id) VALUES ($1, $2)', [pollId, id]);
+
+  if (resetVotes) {
+    // Starts a brand new poll — old votes stay archived under the old poll id.
+    await pool.query('UPDATE polls SET is_active = 0 WHERE is_active = 1');
+    const info = await pool.query('INSERT INTO polls (is_active, created_at) VALUES (1, $1) RETURNING id', [Date.now()]);
+    const pollId = info.rows[0].id;
+    for (const id of movieIds) {
+      await pool.query('INSERT INTO poll_nominees (poll_id, movie_id) VALUES ($1, $2)', [pollId, id]);
+    }
+  } else {
+    // Same poll id — existing votes for movies that are still nominated survive.
+    const poll = await getActivePoll();
+    await pool.query('DELETE FROM poll_nominees WHERE poll_id = $1', [poll.id]);
+    for (const id of movieIds) {
+      await pool.query('INSERT INTO poll_nominees (poll_id, movie_id) VALUES ($1, $2)', [poll.id, id]);
+    }
   }
+
   res.json({ ok: true });
 }));
 
