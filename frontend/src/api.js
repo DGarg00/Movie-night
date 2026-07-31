@@ -47,7 +47,7 @@ export const api = {
   getPoll: () => request('/poll'),
   vote: (movieId) => request('/poll/vote', { method: 'POST', body: { movieId } }),
   unvote: () => request('/poll/vote', { method: 'DELETE' }),
-  setNominees: (movieIds) => request('/poll/nominees', { method: 'POST', body: { movieIds } }),
+  setNominees: (movieIds, resetVotes) => request('/poll/nominees', { method: 'POST', body: { movieIds, resetVotes } }),
 
   getSuggestions: () => request('/suggestions'),
   addSuggestion: (name, link, note) => request('/suggestions', { method: 'POST', body: { name, link, note } }),
