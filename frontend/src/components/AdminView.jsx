@@ -172,10 +172,10 @@ export default function AdminView({ showToast }) {
     setCheckedNominees(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   }
 
-  async function saveNominees() {
+  async function saveNominees(resetVotes) {
     if (checkedNominees.length < 2) { showToast('Pick at least 2 movies'); return; }
-    await api.setNominees(checkedNominees);
-    showToast('Nominees saved, votes reset');
+    await api.setNominees(checkedNominees, resetVotes);
+    showToast(resetVotes ? 'Nominees saved, votes reset' : 'Nominees saved, existing votes kept');
     loadAll();
   }
 
@@ -299,8 +299,9 @@ export default function AdminView({ showToast }) {
             <span>{m.title}</span>
           </div>
         ))}
-        <div style={{ marginTop: 14 }}>
-          <button className="btn btn-primary" onClick={saveNominees}>Save Nominees &amp; Reset Votes</button>
+        <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-ghost" onClick={() => saveNominees(false)}>Save Nominees (Keep Votes)</button>
+          <button className="btn btn-primary" onClick={() => saveNominees(true)}>Save Nominees &amp; Reset Votes</button>
         </div>
       </Collapsible>
 
