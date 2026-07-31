@@ -8,6 +8,23 @@ import OldMovies from './components/OldMovies';
 import AdminView from './components/AdminView';
 import BanPopups from './components/BanPopups';
 import AboutUs from './components/AboutUs';
+import NoticeBanner from './components/NoticeBanner';
+
+// Render's free tier can go to sleep and the very first request after that
+// can be slow or drop — retry a couple of times before giving up, instead
+// of silently failing (this was why ban pop-ups sometimes didn't show up).
+async function withRetry(fn, attempts = 3, delayMs = 2000) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}
 
 export default function App() {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
@@ -17,6 +34,9 @@ export default function App() {
   const [toast, setToast] = useState('');
   const toastTimer = useRef(null);
   const [bannedNames, setBannedNames] = useState([]);
+  const [notice, setNotice] = useState({ on: false, message: '' });
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [presence, setPresence] = useState(null);
 
   const [showAdminClaim, setShowAdminClaim] = useState(false);
   const [adminCode, setAdminCode] = useState('');
@@ -33,17 +53,40 @@ export default function App() {
         }
       }
       try {
-        const m = await api.getMaintenance();
+        const m = await withRetry(() => api.getMaintenance());
         setMaintenanceOn(m.on);
       } catch {}
       try {
-        const notice = await api.getBannedNotice();
-        if (notice.on && notice.names.length) setBannedNames(notice.names);
+        const n = await withRetry(() => api.getNotice());
+        setNotice(n);
+      } catch {}
+      try {
+        const bn = await withRetry(() => api.getBannedNotice());
+        if (bn.on && bn.names.length) setBannedNames(bn.names);
       } catch {}
       setCheckingSession(false);
     })();
   }, []);
-  
+
+  // Keep this browser's "last seen" fresh, and (for admins) poll live counts.
+  useEffect(() => {
+    if (!user) return;
+    api.ping().catch(() => {});
+    const pingTimer = setInterval(() => api.ping().catch(() => {}), 30000);
+
+    let presenceTimer;
+    if (user.isAdmin) {
+      api.getPresence().then(setPresence).catch(() => {});
+      presenceTimer = setInterval(() => {
+        api.getPresence().then(setPresence).catch(() => {});
+      }, 20000);
+    }
+    return () => {
+      clearInterval(pingTimer);
+      if (presenceTimer) clearInterval(presenceTimer);
+    };
+  }, [user]);
+
   function showToast(msg) {
     setToast(msg);
     clearTimeout(toastTimer.current);
@@ -99,12 +142,24 @@ export default function App() {
 
   return (
     <>
+      {notice.on && notice.message && !noticeDismissed && (
+        <NoticeBanner message={notice.message} onDismiss={() => setNoticeDismissed(true)} />
+      )}
+
       <div className="marquee">
         <div className="bulbs">
           {Array.from({ length: 7 }).map((_, i) => <div className="bulb" key={i}></div>)}
         </div>
         <h1 className="display">Movie Committee - NDG</h1>
         <p>Pick it. Suggest it. Rate it.</p>
+
+        {user.isAdmin && presence && (
+          <div className="presence-widget">
+            <div><span className="presence-dot presence-dot-online"></span>Online: {presence.online}</div>
+            <div><span className="presence-dot presence-dot-visited"></span>Visited: {presence.visited}</div>
+          </div>
+        )}
+
         <div className="who">
           {user.name} ({user.regNo}){user.isAdmin ? ' · admin' : ''}
           {!user.isAdmin && (
