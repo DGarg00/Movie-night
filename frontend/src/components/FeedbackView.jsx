@@ -2,11 +2,21 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import MovieTicket from './MovieTicket';
 
-const MAX_COMMENT_WORDS = 25;
+const MAX_COMMENT_WORDS = 20;
+function countWords(text) {
+  return text.trim() ? text.trim().split(/[\s_]+/).filter(Boolean).length : 0;
+}
 function limitWords(text) {
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length <= MAX_COMMENT_WORDS) return text;
-  return words.slice(0, MAX_COMMENT_WORDS).join(' ');
+  const words = text.split(/(?<=[\s_])|(?=[\s_])/); // keep separators so we don't mangle spacing
+  let count = 0, out = '';
+  for (const chunk of words) {
+    if (/[\s_]/.test(chunk)) { out += chunk; continue; }
+    if (chunk === '') continue;
+    count++;
+    if (count > MAX_COMMENT_WORDS) break;
+    out += chunk;
+  }
+  return out;
 }
 
 export default function FeedbackView({ showToast, user }) {
@@ -191,7 +201,7 @@ export default function FeedbackView({ showToast, user }) {
               </>
             )}
 
-            <label style={{ marginTop: 10 }}>Comment (optional, max 25 words)</label>
+            <label style={{ marginTop: 10 }}>Comment (optional, max 20 words)</label>
             <textarea
               value={comment}
               onChange={e => setComment(limitWords(e.target.value))}
@@ -199,7 +209,7 @@ export default function FeedbackView({ showToast, user }) {
               rows={2}
             />
             <div style={{ fontSize: 11, color: 'var(--slate)', marginTop: -6, marginBottom: 10 }}>
-              {comment.trim() ? comment.trim().split(/\s+/).filter(Boolean).length : 0} / {MAX_COMMENT_WORDS} words
+              {countWords(comment)} / {MAX_COMMENT_WORDS} words
             </div>
             <button className="btn btn-primary" onClick={submit}>Submit Rating</button>
           </>
