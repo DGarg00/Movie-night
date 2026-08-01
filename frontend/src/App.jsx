@@ -38,6 +38,7 @@ export default function App() {
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [presence, setPresence] = useState(null);
   const [showOnlineList, setShowOnlineList] = useState(false);
+  const [showVisitedList, setShowVisitedList] = useState(false);
 
   const [showAdminClaim, setShowAdminClaim] = useState(false);
   const [adminCode, setAdminCode] = useState('');
@@ -170,7 +171,20 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div><span className="presence-dot presence-dot-visited"></span>Visited: {presence.visited}</div>
+            <div
+              style={{ position: 'relative', cursor: 'pointer' }}
+              onMouseEnter={() => setShowVisitedList(true)}
+              onMouseLeave={() => setShowVisitedList(false)}
+            >
+              <span className="presence-dot presence-dot-visited"></span>Visited today: {presence.visited}
+              {showVisitedList && (
+                <div className="online-list-popover">
+                  {presence.visitedNames && presence.visitedNames.length > 0
+                    ? presence.visitedNames.map((n, i) => <div key={i}>{n}</div>)
+                    : <div style={{ color: 'var(--slate)' }}>No one yet today</div>}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
