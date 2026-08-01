@@ -177,8 +177,31 @@ app.get('/api/poll', requireAuth, h(async (req, res) => {
     JOIN poll_nominees pn ON pn.poll_id = v.poll_id AND pn.movie_id = v.movie_id
     WHERE v.poll_id = $1 GROUP BY v.movie_id
   `, [poll.id]);
+  const realVotes = {};
+  voteCounts.rows.forEach(v => { realVotes[v.movie_id] = Number(v.c); });
+
+  // Who voted for what — real voters only, manual admin bumps are excluded.
+  const voterRows = await pool.query(`
+    SELECT v.movie_id, u.name FROM votes v
+    JOIN poll_nominees pn ON pn.poll_id = v.poll_id AND pn.movie_id = v.movie_id
+    LEFT JOIN users u ON u.reg_no = v.reg_no
+    WHERE v.poll_id = $1
+    ORDER BY u.name ASC
+  `, [poll.id]);
+  const voterNames = {};
+  voterRows.rows.forEach(r => {
+    if (!voterNames[r.movie_id]) voterNames[r.movie_id] = [];
+    voterNames[r.movie_id].push(r.name || 'Unknown');
+  });
+
+  const manualRows = await pool.query('SELECT movie_id, amount FROM manual_votes WHERE poll_id = $1', [poll.id]);
+  const manualVotes = {};
+  manualRows.rows.forEach(r => { manualVotes[r.movie_id] = Number(r.amount); });
+
   const votes = {};
-  voteCounts.rows.forEach(v => { votes[v.movie_id] = Number(v.c); });
+  nomineeRows.rows.forEach(m => {
+    votes[m.id] = (realVotes[m.id] || 0) + (manualVotes[m.id] || 0);
+  });
 
   const myVoteRow = await pool.query(`
     SELECT v.movie_id FROM votes v
@@ -189,6 +212,7 @@ app.get('/api/poll', requireAuth, h(async (req, res) => {
   res.json({
     nominees: nomineeRows.rows.map(serializeMovie),
     votes,
+    voterNames,
     myVote: myVoteRow.rows[0] ? myVoteRow.rows[0].movie_id : null
   });
 }));
@@ -218,6 +242,18 @@ app.post('/api/poll/nominees', requireAdmin, h(async (req, res) => {
   if (!Array.isArray(movieIds) || movieIds.length < 2) {
     return res.status(400).json({ error: 'Pick at least 2 movies.' });
   }
+
+app.post('/api/poll/adjust-votes', requireAdmin, h(async (req, res) => {
+  const { movieId, amount } = req.body;
+  const n = Number(amount);
+  if (!Number.isInteger(n) || n <= 0) return res.status(400).json({ error: 'Enter a positive whole number.' });
+  const poll = await getActivePoll();
+  await pool.query(`
+    INSERT INTO manual_votes (poll_id, movie_id, amount) VALUES ($1, $2, $3)
+    ON CONFLICT (poll_id, movie_id) DO UPDATE SET amount = manual_votes.amount + $3
+  `, [poll.id, movieId, n]);
+  res.json({ ok: true });
+}));  
 
   if (resetVotes) {
     // Starts a brand new poll — old votes stay archived under the old poll id.
