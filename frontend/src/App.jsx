@@ -221,7 +221,7 @@ export default function App() {
       </nav>
 
       <main>
-        {tab === 'vote' && <VoteView showToast={showToast} />}
+        {tab === 'vote' && <VoteView showToast={showToast} user={user} />}
         {tab === 'suggest' && <SuggestView showToast={showToast} user={user} />}
         {tab === 'feedback' && <FeedbackView showToast={showToast} user={user} />}
         {tab === 'old' && <OldMovies />}
