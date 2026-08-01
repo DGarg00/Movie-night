@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import MovieTicket from './MovieTicket';
 
-export default function VoteView({ showToast }) {
+export default function VoteView({ showToast, user }) {
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hoveredMovieId, setHoveredMovieId] = useState(null);
 
   async function load() {
     const data = await api.getPoll();
@@ -23,6 +24,23 @@ export default function VoteView({ showToast }) {
         await api.vote(movieId);
         showToast('Vote counted!');
       }
+      load();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function adjustVotes(movieId, movieTitle) {
+    const input = window.prompt(`Increase votes for "${movieTitle}" by how many?`);
+    if (input === null) return;
+    const amount = Number(input);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      showToast('Enter a positive whole number');
+      return;
+    }
+    try {
+      await api.adjustVotes(movieId, amount);
+      showToast(`Added ${amount} vote${amount === 1 ? '' : 's'} to ${movieTitle}`);
       load();
     } catch (err) {
       showToast(err.message);
@@ -52,21 +70,45 @@ export default function VoteView({ showToast }) {
         const count = poll.votes[m.id] || 0;
         const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
         const votedForThis = poll.myVote === m.id;
+        const voters = (poll.voterNames && poll.voterNames[m.id]) || [];
+
         return (
-          <MovieTicket key={m.id} movie={m}>
-            <div className="vote-row">
-              <button
-                className={`btn btn-vote ${votedForThis ? 'voted' : ''}`}
-                onClick={() => vote(m.id)}
-              >
-                {votedForThis ? '✓ Your pick (Tap to undo)' : 'Vote for this'}
-              </button>
-              <div className="vote-bar-wrap">
-                <div className="vote-bar-track"><div className="vote-bar-fill" style={{ width: `${pct}%` }} /></div>
-                <div className="vote-count">{count} vote{count === 1 ? '' : 's'} · {pct}%</div>
+          <div key={m.id} style={{ position: 'relative' }}>
+            <MovieTicket movie={m}>
+              <div className="vote-row">
+                <button
+                  className={`btn btn-vote ${votedForThis ? 'voted' : ''}`}
+                  onClick={() => vote(m.id)}
+                >
+                  {votedForThis ? '✓ Your pick (tap to undo)' : 'Vote for this'}
+                </button>
+                <div
+                  className="vote-bar-wrap"
+                  style={{ position: 'relative', cursor: voters.length ? 'pointer' : 'default' }}
+                  onMouseEnter={() => voters.length && setHoveredMovieId(m.id)}
+                  onMouseLeave={() => setHoveredMovieId(null)}
+                >
+                  <div className="vote-bar-track"><div className="vote-bar-fill" style={{ width: `${pct}%` }} /></div>
+                  <div className="vote-count">{count} vote{count === 1 ? '' : 's'} · {pct}%</div>
+                  {hoveredMovieId === m.id && (
+                    <div className="online-list-popover" style={{ left: 0, transform: 'none', top: '100%' }}>
+                      {voters.map((n, i) => <div key={i}>{n}</div>)}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </MovieTicket>
+            </MovieTicket>
+
+            {user?.isAdmin && (
+              <button
+                className="btn btn-ghost manual-vote-btn"
+                onClick={() => adjustVotes(m.id, m.title)}
+                title="Manually increase votes"
+              >
+                +
+              </button>
+            )}
+          </div>
         );
       })}
     </section>
