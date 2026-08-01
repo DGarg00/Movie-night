@@ -555,6 +555,21 @@ app.post('/api/admin/maintenance', requireAdmin, h(async (req, res) => {
 }));
 
 async function ensureExtraColumns() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS manual_votes (
+      poll_id INTEGER NOT NULL,
+      movie_id INTEGER NOT NULL,
+      amount INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (poll_id, movie_id)
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS daily_visits (
+      visit_date TEXT NOT NULL,
+      reg_no TEXT NOT NULL,
+      PRIMARY KEY (visit_date, reg_no)
+    );
+  `);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned INTEGER NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at BIGINT;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen BIGINT;`);
@@ -635,17 +650,31 @@ app.post('/api/admin/notice', requireAdmin, h(async (req, res) => {
 
 app.post('/api/presence/ping', requireAuth, h(async (req, res) => {
   await pool.query('UPDATE users SET last_seen = $1 WHERE reg_no = $2', [Date.now(), req.user.regNo]);
+  const today = new Date().toISOString().slice(0, 10);
+  await pool.query(
+    'INSERT INTO daily_visits (visit_date, reg_no) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    [today, req.user.regNo]
+  );
   res.json({ ok: true });
 }));
 
 app.get('/api/admin/presence', requireAdmin, h(async (req, res) => {
   const cutoff = Date.now() - 90 * 1000;
   const onlineResult = await pool.query('SELECT name FROM users WHERE last_seen >= $1 ORDER BY name ASC', [cutoff]);
-  const totalResult = await pool.query('SELECT COUNT(*) c FROM users');
+
+  const today = new Date().toISOString().slice(0, 10);
+  const visitedResult = await pool.query(`
+    SELECT u.name FROM daily_visits dv
+    JOIN users u ON u.reg_no = dv.reg_no
+    WHERE dv.visit_date = $1
+    ORDER BY u.name ASC
+  `, [today]);
+
   res.json({
     online: onlineResult.rows.length,
     onlineNames: onlineResult.rows.map(r => r.name),
-    visited: Number(totalResult.rows[0].c)
+    visited: visitedResult.rows.length,
+    visitedNames: visitedResult.rows.map(r => r.name)
   });
 }));
 
