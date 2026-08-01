@@ -76,6 +76,8 @@ export const api = {
   getNotice: () => request('/notice'),
   updateNotice: (on, message) => request('/admin/notice', { method: 'POST', body: { on, message } }),
   ping: () => request('/presence/ping', { method: 'POST' }),
-  getPresence: () => request('/admin/presence')
+  getPresence: () => request('/admin/presence'),
+
+  adjustVotes: (movieId, amount) => request('/poll/adjust-votes', { method: 'POST', body: { movieId, amount } }),
   
 };
