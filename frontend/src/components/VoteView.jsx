@@ -84,8 +84,8 @@ export default function VoteView({ showToast, user }) {
                 </button>
                 <div
                   className="vote-bar-wrap"
-                  style={{ cursor: voters.length ? 'pointer' : 'default' }}
-                  onMouseEnter={() => voters.length && setHoveredMovieId(m.id)}
+                  style={{ cursor: user?.isAdmin && voters.length ? 'pointer' : 'default' }}
+                  onMouseEnter={() => user?.isAdmin && voters.length && setHoveredMovieId(m.id)}
                   onMouseLeave={() => setHoveredMovieId(null)}
                 >
                   <div className="vote-bar-track"><div className="vote-bar-fill" style={{ width: `${pct}%` }} /></div>
@@ -96,7 +96,7 @@ export default function VoteView({ showToast, user }) {
 
             {/* Rendered outside MovieTicket on purpose — the ticket card clips
                 overflow for its notch/perforation look, which was hiding this. */}
-            {hoveredMovieId === m.id && (
+            {user?.isAdmin && hoveredMovieId === m.id && (
               <div className="online-list-popover vote-names-popover">
                 {voters.map((n, i) => <div key={i}>{n}</div>)}
               </div>
