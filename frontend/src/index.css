@@ -248,3 +248,12 @@ small.hint{ display:block; color:var(--slate); font-size:11.5px; margin:-10px 0 
   box-shadow:0 8px 22px rgba(0,0,0,0.4); z-index:200;
   font-size:12px; color:var(--cream); text-align:left;
 }
+
+.manual-vote-btn{
+  position:absolute; bottom:10px; right:10px;
+  width:30px; height:30px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; font-weight:700; line-height:1; padding:0;
+  background:var(--surface-2); border:1px solid var(--gold); color:var(--gold);
+}
+.manual-vote-btn:hover{ background:var(--gold); color:var(--bg); }
