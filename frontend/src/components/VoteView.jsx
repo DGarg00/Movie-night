@@ -72,7 +72,7 @@ export default function VoteView({ showToast, user }) {
         const votedForThis = poll.myVote === m.id;
         const voters = (poll.voterNames && poll.voterNames[m.id]) || [];
 
-        return (
+       return (
           <div key={m.id} style={{ position: 'relative' }}>
             <MovieTicket movie={m}>
               <div className="vote-row">
@@ -84,20 +84,23 @@ export default function VoteView({ showToast, user }) {
                 </button>
                 <div
                   className="vote-bar-wrap"
-                  style={{ position: 'relative', cursor: voters.length ? 'pointer' : 'default' }}
+                  style={{ cursor: voters.length ? 'pointer' : 'default' }}
                   onMouseEnter={() => voters.length && setHoveredMovieId(m.id)}
                   onMouseLeave={() => setHoveredMovieId(null)}
                 >
                   <div className="vote-bar-track"><div className="vote-bar-fill" style={{ width: `${pct}%` }} /></div>
                   <div className="vote-count">{count} vote{count === 1 ? '' : 's'} · {pct}%</div>
-                  {hoveredMovieId === m.id && (
-                    <div className="online-list-popover" style={{ left: 0, transform: 'none', top: '100%' }}>
-                      {voters.map((n, i) => <div key={i}>{n}</div>)}
-                    </div>
-                  )}
                 </div>
               </div>
             </MovieTicket>
+
+            {/* Rendered outside MovieTicket on purpose — the ticket card clips
+                overflow for its notch/perforation look, which was hiding this. */}
+            {hoveredMovieId === m.id && (
+              <div className="online-list-popover vote-names-popover">
+                {voters.map((n, i) => <div key={i}>{n}</div>)}
+              </div>
+            )}
 
             {user?.isAdmin && (
               <button
