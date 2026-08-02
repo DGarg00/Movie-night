@@ -239,8 +239,8 @@ app.post('/api/poll/vote', requireAuth, h(async (req, res) => {
 
 app.post('/api/poll/nominees', requireAdmin, h(async (req, res) => {
   const { movieIds, resetVotes } = req.body;
-  if (!Array.isArray(movieIds) || movieIds.length < 2) {
-    return res.status(400).json({ error: 'Pick at least 2 movies.' });
+  if (!Array.isArray(movieIds) || movieIds.length < 1) {
+    return res.status(400).json({ error: 'Pick at least 1 movie.' });
   }
 
 app.post('/api/poll/adjust-votes', requireAdmin, h(async (req, res) => {
