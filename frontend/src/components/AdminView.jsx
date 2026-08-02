@@ -173,9 +173,16 @@ export default function AdminView({ showToast }) {
   }
 
   async function saveNominees(resetVotes) {
-    if (checkedNominees.length < 2) { showToast('Pick at least 2 movies'); return; }
+    if (checkedNominees.length < 1) { showToast('Pick at least 1 movie'); return; }
     await api.setNominees(checkedNominees, resetVotes);
     showToast(resetVotes ? 'Nominees saved, votes reset' : 'Nominees saved, existing votes kept');
+    loadAll();
+  }
+
+  async function clearNominees() {
+    if (!window.confirm('Clear everything from Next Saturday? This removes all nominees and votes.')) return;
+    await api.adminReset('poll');
+    showToast('Next Saturday cleared');
     loadAll();
   }
 
@@ -287,7 +294,7 @@ export default function AdminView({ showToast }) {
       </Collapsible>
 
       <Collapsible title="Set Next Saturday's Nominees">
-        <small className="hint">Pick 2–3 movies. Saving resets the current vote count.</small>
+        <small className="hint">Pick 1 or more movies. Saving resets the current vote count (unless you choose "Keep Votes").</small>
         {movies.length === 0 && <p style={{ color: 'var(--slate)', fontSize: 13 }}>Add movies to the library first.</p>}
         {movies.map(m => (
           <div className="checkline" key={m.id}>
@@ -302,6 +309,7 @@ export default function AdminView({ showToast }) {
         <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-ghost" onClick={() => saveNominees(false)}>Save Nominees (Keep Votes)</button>
           <button className="btn btn-primary" onClick={() => saveNominees(true)}>Save Nominees &amp; Reset Votes</button>
+          <button className="btn btn-ghost" style={{ color: 'var(--red)', borderColor: 'var(--red)' }} onClick={clearNominees}>Clear Next Saturday</button>
         </div>
       </Collapsible>
 
