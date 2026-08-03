@@ -1,39 +1,36 @@
 import { useEffect, useState } from 'react';
 
-const HOLD_MS = 5000;
-const FADE_MS = 600;
+const HOLD_MS = 2600;
+const GAP_MS = 300;
 
 export default function BanPopups({ names }) {
   const [queue, setQueue] = useState([]);
   const [current, setCurrent] = useState(null);
-  const [visible, setVisible] = useState(false);
+  const [popKey, setPopKey] = useState(0);
 
   useEffect(() => {
     if (names && names.length) setQueue(names);
   }, [names]);
 
   useEffect(() => {
-    if (current || !queue.length) return;
+    if (current !== null || !queue.length) return;
     const [next, ...rest] = queue;
     setCurrent(next);
     setQueue(rest);
-    setVisible(false);
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
-    return () => cancelAnimationFrame(raf);
+    setPopKey(k => k + 1);
   }, [queue, current]);
 
   useEffect(() => {
-    if (!current) return;
-    const hideTimer = setTimeout(() => setVisible(false), HOLD_MS);
-    const nextTimer = setTimeout(() => setCurrent(null), HOLD_MS + FADE_MS);
-    return () => { clearTimeout(hideTimer); clearTimeout(nextTimer); };
+    if (current === null) return;
+    const t = setTimeout(() => setCurrent(null), HOLD_MS + GAP_MS);
+    return () => clearTimeout(t);
   }, [current]);
 
-  if (!current) return null;
+  if (current === null) return null;
 
   return (
     <div className="ban-popup-stack">
-      <div className={`ban-popup ${visible ? 'show' : ''}`}>
+      <div className="ban-popup ban-popup-anim" key={popKey}>
         {current} was banned for violating restrictions.
       </div>
     </div>
