@@ -63,9 +63,11 @@ export default function App() {
         setNotice(n);
       } catch {}
       try {
-        const bn = await withRetry(() => api.getBannedNotice());
-        if (bn.on && bn.names.length) setBannedNames(bn.names);
-      } catch {}
+        const bn = await withRetry(() => api.getBannedNotice(), 5, 2500);
+        setBannedNames(bn.on ? bn.names : []);
+      } catch {
+        setBannedNames([]);
+      }
       setCheckingSession(false);
     })();
   }, []);
