@@ -59,7 +59,7 @@ export default function App() {
         setMaintenanceOn(m.on);
       } catch {}
       try {
-        const n = await withRetry(() => api.getNotice());
+        const n = await withRetry(() => api.getNotice(), 5, 2500);
         setNotice(n);
       } catch {}
       try {
