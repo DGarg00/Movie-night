@@ -243,18 +243,6 @@ app.post('/api/poll/nominees', requireAdmin, h(async (req, res) => {
     return res.status(400).json({ error: 'Pick at least 1 movie.' });
   }
 
-app.post('/api/poll/adjust-votes', requireAdmin, h(async (req, res) => {
-  const { movieId, amount } = req.body;
-  const n = Number(amount);
-  if (!Number.isInteger(n) || n <= 0) return res.status(400).json({ error: 'Enter a positive whole number.' });
-  const poll = await getActivePoll();
-  await pool.query(`
-    INSERT INTO manual_votes (poll_id, movie_id, amount) VALUES ($1, $2, $3)
-    ON CONFLICT (poll_id, movie_id) DO UPDATE SET amount = manual_votes.amount + $3
-  `, [poll.id, movieId, n]);
-  res.json({ ok: true });
-}));  
-
   if (resetVotes) {
     // Starts a brand new poll — old votes stay archived under the old poll id.
     await pool.query('UPDATE polls SET is_active = 0 WHERE is_active = 1');
@@ -272,6 +260,18 @@ app.post('/api/poll/adjust-votes', requireAdmin, h(async (req, res) => {
     }
   }
 
+  res.json({ ok: true });
+}));
+
+app.post('/api/poll/adjust-votes', requireAdmin, h(async (req, res) => {
+  const { movieId, amount } = req.body;
+  const n = Number(amount);
+  if (!Number.isInteger(n) || n <= 0) return res.status(400).json({ error: 'Enter a positive whole number.' });
+  const poll = await getActivePoll();
+  await pool.query(`
+    INSERT INTO manual_votes (poll_id, movie_id, amount) VALUES ($1, $2, $3)
+    ON CONFLICT (poll_id, movie_id) DO UPDATE SET amount = manual_votes.amount + $3
+  `, [poll.id, movieId, n]);
   res.json({ ok: true });
 }));
 
